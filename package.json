@@ -1,11 +1,11 @@
 {
   "name": "my-track",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && copy .\\dist\\index.html .\\dist\\200.html",
+    "build": "vite build && cp ./dist/index.html ./dist/200.html",
     "deploy": "npm run build && npx surge ./dist netta.surge.sh",
     "lint": "eslint .",
     "preview": "vite preview"
