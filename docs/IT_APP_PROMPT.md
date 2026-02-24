@@ -2,8 +2,10 @@
 
 ## הוראות כלליות
 
-בנה לי אפליקציה לניהול 5 טכנאי IT מאפס.
-האפליקציה תומכת בריבוי בתי ספר (Multi-Tenant) - כל בית ספר מנוהל בנפרד עם הנתונים שלו. המשתמש משויך לבית ספר ספציפי, וכל הנתונים מסוננים לפי `schoolId`.
+בנה לי אפליקציה לניהול צוות של 5 טכנאי IT שנותנים שירות למספר בתי ספר.
+הטכנאים הם צוות אחד (לא שייכים לבית ספר מסוים) שמשרת את כל בתי הספר.
+כל בית ספר הוא "לקוח" עם הגדרות משלו (מיקומים, קטגוריות וכו').
+כשנכנס בית ספר חדש למערכת, מגדירים לו את המאפיינים הייחודיים שלו.
 
 ### Stack טכנולוגי
 - **React 19** + **Vite 5** + **React Router DOM 7**
@@ -240,28 +242,36 @@ src/
 │   │   ├── DateNavigation.jsx     # ניווט בין תאריכים (prev/next/today) בעברית
 │   │   ├── PriorityBadge.jsx      # תגית עדיפות צבעונית
 │   │   ├── StatusBadge.jsx        # תגית סטטוס צבעונית
-│   │   └── CategoryIcon.jsx       # אייקון קטגוריה מ-Lucide
-│   ├── admin/
-│   │   ├── AdminDashboard.jsx     # מסך ראשי מנהל
-│   │   ├── TechnicianList.jsx     # רשימת 5 טכנאים + סטטוס
-│   │   ├── AllCallsView.jsx       # טבלת קריאות עם סינון
-│   │   ├── AssignCallModal.jsx    # חלון שיבוץ קריאה לטכנאי
-│   │   └── ReportsView.jsx        # סטטיסטיקות ודוחות
+│   │   ├── CategoryIcon.jsx       # אייקון קטגוריה מ-Lucide
+│   │   └── LocationPicker.jsx     # משפך חכם לבחירת מיקום (קומה → סוג → חדר)
+│   ├── tech-manager/
+│   │   ├── ManagerDashboard.jsx   # מסך ראשי מנהל טכנאים - כל בתי הספר או בית ספר בודד
+│   │   ├── SchoolSelector.jsx     # בחירת בית ספר (תצוגה כולל / בית ספר בודד)
+│   │   ├── AllCallsView.jsx       # כל הפניות עם סינון (בית ספר / סטטוס / קטגוריה)
+│   │   ├── ReportsView.jsx        # סטטיסטיקות ודוחות חוצי בתי ספר
+│   │   ├── InventoryManager.jsx   # ניהול מלאי ציוד
+│   │   └── SchoolSettings.jsx     # הגדרות בית ספר חדש (מיקומים, קטגוריות)
 │   ├── technician/
-│   │   ├── TechDashboard.jsx      # מסך ראשי טכנאי
-│   │   ├── ServiceCallCard.jsx    # כרטיס קריאת שירות
-│   │   ├── CallDetailView.jsx     # פרטי קריאה + הערות + שינוי סטטוס
-│   │   └── StatusControl.jsx      # כפתורי שינוי סטטוס
+│   │   ├── TechDashboard.jsx      # מסך ראשי טכנאי - כל הפניות + כניסה/יציאה לבי"ס
+│   │   ├── ClockInOut.jsx         # כניסה/יציאה לבית ספר (מעקב שעות)
+│   │   ├── ServiceCallCard.jsx    # כרטיס פנייה
+│   │   ├── CallDetailView.jsx     # פרטי פנייה + הערות + שינוי סטטוס + היסטוריה
+│   │   ├── StatusControl.jsx      # כפתורי שינוי סטטוס
+│   │   └── SendMessageModal.jsx   # שליחת הודעה ללקוח (מייל/ווצאפ/נוטיפיקציה)
+│   ├── school-admin/
+│   │   ├── SchoolDashboard.jsx    # מסך ראשי מנהל בית ספר - סיכום + דוחות
+│   │   ├── SchoolCallsView.jsx    # צפייה בפניות בית הספר (קריאה בלבד + drill down)
+│   │   └── SchoolReports.jsx      # דוחות ברמת בית ספר
 │   └── client/
-│       ├── NewCallForm.jsx        # טופס פתיחת קריאה חדשה
-│       ├── LocationPicker.jsx     # משפך חכם לבחירת מיקום (קומה → סוג → חדר)
-│       └── MyCallsView.jsx        # רשימת קריאות הלקוח
+│       ├── NewCallForm.jsx        # טופס פתיחת פנייה חדשה
+│       └── MyCallsView.jsx        # רשימת הפניות שלי + סטטוס
 ├── pages/
 │   └── LoginPage.jsx              # דף התחברות
 ├── services/
 │   ├── firebase.js                # אתחול Firebase
 │   ├── storage.js                 # Firestore CRUD + real-time subscriptions
-│   └── authService.js             # פונקציות login/logout/register
+│   ├── authService.js             # פונקציות login/logout/register
+│   └── googleSheetsService.js     # משיכת פניות מ-Google Forms/Sheets
 ├── lib/
 │   └── utils.js                   # cn() utility
 ├── App.jsx                        # Router ראשי
@@ -274,42 +284,51 @@ src/
 ## מבנה האפליקציה
 
 ### תפקידים (Roles)
-1. **מנהל (admin)** - רואה הכל, מנהל טכנאים, משבץ קריאות, צופה בדוחות
-2. **טכנאי (technician)** - רואה קריאות שמשובצות אליו, מעדכן סטטוס, מתעד טיפול
-3. **לקוח (client)** - פותח קריאת שירות חדשה, עוקב אחרי הסטטוס שלה
+1. **מנהל טכנאים (tech_manager)** - הבעלים של צוות הטכנאים. רואה פניות של **כל** בתי הספר ביחד או לחוד. מנהל מלאי, דוחות, הגדרות בתי ספר. **גם טכנאי בעצמו** - קונסולת מנהל = קונסולת טכנאי + יכולות ניהול.
+2. **טכנאי (technician)** - רואה את **כל** הפניות מכל בתי הספר. כל פנייה יכולה להיות מטופלת ע"י כל טכנאי. **אין שיבוץ** - מי שנוגע בפנייה מתועד כאחרון שטיפל. מנהל שעות כניסה/יציאה לבתי ספר.
+3. **מנהל בית ספר (school_admin)** - רואה נתונים ודוחות של **בית הספר שלו בלבד**. יכול לרדת לרזולוציות ולקרוא פניות ספציפיות. לא מטפל בפניות.
+4. **לקוח (client)** - צוות בית הספר. פותח פנייה חדשה ועוקב אחרי הסטטוס שלה. **לא מגדיר דחיפות**.
 
 ### Routes
 ```
 /login                        → דף התחברות (email + password)
-/admin                        → Dashboard מנהל
-/admin/technicians            → ניהול 5 טכנאים
-/admin/calls                  → כל הקריאות
-/admin/reports                → דוחות וסטטיסטיקות
-/technician/:id               → Dashboard טכנאי ספציפי
-/technician/:id/call/:callId  → פרטי קריאה מלאים
-/client                       → דף פתיחת קריאה + מעקב
+/manager                      → Dashboard מנהל טכנאים (כולל יכולות טכנאי)
+/manager/calls                → כל הפניות מכל בתי הספר (עם סינון)
+/manager/calls/:callId        → פרטי פנייה + היסטוריה
+/manager/reports              → דוחות וסטטיסטיקות חוצי בתי ספר
+/manager/inventory            → ניהול מלאי ציוד
+/manager/schools/:schoolId    → הגדרות בית ספר (מיקומים, קטגוריות)
+/technician                   → Dashboard טכנאי (כל הפניות + כניסה/יציאה)
+/technician/call/:callId      → פרטי פנייה + היסטוריה
+/school/:schoolId             → Dashboard מנהל בית ספר (דוחות + צפייה בפניות)
+/client                       → דף פתיחת פנייה + מעקב
 ```
 
 ### אימות (Authentication)
 - Firebase Auth עם Email/Password
-- בעת הרשמה - שמור את ה-role + `schoolId` ב-Firestore (collection: `users`)
+- בעת הרשמה - שמור את ה-role ב-Firestore (collection: `users`)
+- **לקוח ומנהל בית ספר** משויכים ל-`schoolId` ספציפי
+- **טכנאי ומנהל טכנאים** לא משויכים לבית ספר - רואים את כל בתי הספר
 - Guard על כל route - אם לא מחובר → redirect ל-`/login`
 - אם מחובר אבל ניגש ל-route לא שלו → redirect ל-dashboard שלו
-- **כל משתמש משויך לבית ספר אחד** - `schoolId` נטען ב-login ומשמש לסינון כל הנתונים
 
 ---
 
 ## מודל נתונים (Firestore Collections)
 
 ### `schools`
+כל בית ספר הוא "לקוח" של צוות הטכנאים. כשנכנס בית ספר חדש - מגדירים לו מיקומים, קטגוריות וכו'.
 ```javascript
 {
   id: "school_1",
   name: "בית ספר אופק",
   address: "רחוב הרצל 15, תל אביב",
   phone: "03-1234567",
-  contactName: "דוד כהן",             // איש קשר
+  contactName: "דוד כהן",
   contactEmail: "david@ofek-school.co.il",
+  // אינטגרציית Google Forms - אופציונלי
+  googleSheetId: "1BxiMVs0XRA5nFMdKvBd..." | null,   // ID של Google Sheet שמקושר לטופס
+  googleFormUrl: "https://forms.gle/..." | null,       // URL של טופס Google לשליחה ללקוחות
   active: true,
   createdAt: timestamp
 }
@@ -321,10 +340,10 @@ src/
   uid: "firebase-auth-uid",
   email: "user@example.com",
   displayName: "ישראל ישראלי",
-  role: "admin" | "technician" | "client",
-  schoolId: "school_1",             // שיוך לבית ספר - חובה
-  schoolName: "בית ספר אופק",       // denormalized לתצוגה מהירה
-  technicianId: "tech_1",           // רק לטכנאים
+  role: "tech_manager" | "technician" | "school_admin" | "client",
+  // לקוחות ומנהלי בתי ספר - משויכים לבית ספר
+  schoolId: "school_1" | null,         // null עבור טכנאים ומנהל טכנאים
+  schoolName: "בית ספר אופק" | null,
   phone: "050-1234567",
   active: true,
   createdAt: timestamp
@@ -332,83 +351,146 @@ src/
 ```
 
 ### `technicians`
+הטכנאים הם צוות אחד גלובלי (לא שייכים לבית ספר). 5 טכנאים בסה"כ.
 ```javascript
 {
   id: "tech_1",
+  uid: "firebase-auth-uid",            // קישור ל-users collection
   name: "יוסי כהן",
   phone: "050-1234567",
   email: "yossi@company.com",
-  schoolId: "school_1",             // שיוך לבית ספר
   specialties: ["network", "hardware", "software"],
-  active: true,
-  currentLoad: 3  // מספר קריאות פתוחות כרגע
+  isManager: false,                     // true = מנהל טכנאים (role: tech_manager)
+  active: true
 }
 ```
 
-### `service_calls`
+### `service_calls` (פניות)
+**אין שיבוץ** לטכנאי ספציפי. כל הטכנאים רואים הכל. מי שנוגע - מתועד כאחרון.
 ```javascript
 {
   id: "call_20260224_001",
-  schoolId: "school_1",             // שיוך לבית ספר - חובה
-  title: "מחשב לא נדלק",
+  schoolId: "school_1",
+  schoolName: "בית ספר אופק",          // denormalized
+
+  // תיאור הפנייה (לקוח ממלא)
+  // אין title - הקטגוריה מספיקה
   description: "המחשב בעמדה 5 לא מגיב ללחיצה על כפתור ההפעלה",
   category: "hardware" | "software" | "network" | "security" | "printer" | "other",
-  priority: "low" | "medium" | "high" | "urgent",
-  status: "new" | "assigned" | "in_progress" | "resolved" | "closed",
+
+  // דחיפות - נקבעת ע"י טכנאי/מנהל טכנאים (לא הלקוח!)
+  priority: "low" | "medium" | "high" | "urgent" | null,  // null = טרם נקבעה
+
+  // סטטוס: התקבל → בטיפול → ממתין → הושלם → סגור
+  status: "new" | "in_progress" | "waiting" | "resolved" | "closed",
 
   // שיוך לקוח
   clientId: "user-uid",
   clientName: "שרה לוי",
   clientPhone: "052-9876543",
+  clientEmail: "sara@ofek-school.co.il",
 
   // מיקום - נבחר דרך משפך חכם (קומה → סוג → חדר)
   location: {
-    floorId: "ground",           // מזהה קומה
-    floorLabel: "קומת קרקע",     // תווית קומה
-    categoryId: "classrooms",    // מזהה סוג חדר
-    categoryLabel: "כיתות",      // תווית סוג
-    roomId: "room_a1",           // מזהה חדר
-    roomLabel: "כיתה א'1"       // תווית חדר
+    floorId: "ground",
+    floorLabel: "קומת קרקע",
+    categoryId: "classrooms",
+    categoryLabel: "כיתות",
+    roomId: "room_a1",
+    roomLabel: "כיתה א'1"
   },
-  locationDisplay: "קומת קרקע > כיתות > כיתה א'1",  // מחרוזת תצוגה מוכנה
+  locationDisplay: "קומת קרקע > כיתות > כיתה א'1",
 
-  // שיוך טכנאי
-  assignedTo: "tech_1" | null,
-  assignedTechName: "יוסי כהן",
-  assignedAt: timestamp | null,
+  // אחרון שטיפל (לא שיבוץ - כל טכנאי יכול לטפל)
+  lastHandledBy: "tech_1" | null,
+  lastHandledByName: "יוסי כהן" | null,
+  lastHandledAt: timestamp | null,
 
-  // תיעוד טיפול
+  // הערות טיפול
   notes: [
     {
       id: "note_1",
-      author: "tech_1",
-      authorName: "יוסי כהן",
+      techId: "tech_1",
+      techName: "יוסי כהן",
       text: "הגעתי לאתר, בודק את ספק הכוח",
       timestamp: timestamp
     }
   ],
 
-  // רישום שעות עבודה
-  workLog: [
+  // ציוד שסופק - מתוך רשימת מלאי קשיחה (לא טקסט חופשי)
+  suppliedEquipment: [
     {
-      id: "wl_1",
+      itemId: "inv_cable_power",
+      itemName: "כבל חשמל",
+      quantity: 1,
       techId: "tech_1",
       techName: "יוסי כהן",
-      startTime: timestamp,
-      endTime: timestamp | null,       // null = טיימר עדיין רץ
-      durationMinutes: 45,             // מחושב אוטומטית בסיום
-      description: "בדיקת ספק כוח והחלפת כבל",
-      parts: ["כבל חשמל"],             // חומרים שהוחלפו (אופציונלי)
       timestamp: timestamp
     }
   ],
-  totalWorkMinutes: 75,                // סיכום כל השעות בקריאה
+
+  // היסטוריה (Audit Log) - כל שינוי מתועד אוטומטית
+  history: [
+    {
+      id: "hist_1",
+      action: "created",              // created | status_changed | priority_set | note_added | equipment_supplied | message_sent | closed
+      description: "פנייה נפתחה",
+      performedBy: "user-uid",
+      performedByName: "שרה לוי",
+      oldValue: null,
+      newValue: "new",
+      timestamp: timestamp
+    },
+    {
+      id: "hist_2",
+      action: "status_changed",
+      description: "סטטוס שונה ל: בטיפול",
+      performedBy: "tech_1",
+      performedByName: "יוסי כהן",
+      oldValue: "new",
+      newValue: "in_progress",
+      timestamp: timestamp
+    }
+  ],
+
+  // מקור הפנייה
+  source: "app" | "google_form",       // app = נפתחה דרך האפליקציה, google_form = נמשכה מ-Google Sheets
 
   // זמנים
   createdAt: timestamp,
   updatedAt: timestamp,
   resolvedAt: timestamp | null,
   closedAt: timestamp | null
+}
+```
+
+### `work_sessions` (מעקב שעות כניסה/יציאה לבתי ספר)
+**לא ברמת פנייה** אלא ברמת ביקור בבית ספר. במסך הראשי הטכנאי לוחץ "כניסה" → בוחר בית ספר → כשיוצא לוחץ "יציאה".
+```javascript
+{
+  id: "ws_20260224_tech1_001",
+  techId: "tech_1",
+  techName: "יוסי כהן",
+  schoolId: "school_1",
+  schoolName: "בית ספר אופק",
+  clockIn: timestamp,                   // שעת כניסה
+  clockOut: timestamp | null,           // null = עדיין באתר
+  durationMinutes: 120 | null,          // מחושב אוטומטית ב-clockOut
+  date: "2026-02-24",                   // תאריך (לשליפה קלה לדוחות)
+  createdAt: timestamp
+}
+```
+
+### `inventory_items` (מלאי ציוד)
+רשימה קשיחה של פריטי ציוד. כשטכנאי מספק ציוד בפנייה - בוחר מרשימה זו.
+```javascript
+{
+  id: "inv_cable_power",
+  name: "כבל חשמל",
+  category: "cables" | "peripherals" | "components" | "consumables" | "other",
+  inStock: 25,                          // כמות במלאי
+  minStock: 5,                          // התראה כשיורד מתחת
+  active: true
 }
 ```
 
@@ -531,159 +613,169 @@ src/
 
 ## קומפוננטות - פירוט
 
-### DateNavigation - קומפוננטת ניווט תאריכים בעברית
-קומפוננטה sticky בראש המסך עם חיצי prev/next וכפתור "חזור להיום". משתמשת ב-date-fns עם locale עברי להצגת תאריך בפורמט: "יום ראשון, 24 בפברואר". בנה אותה בסגנון הבא:
-```jsx
-import { format } from 'date-fns';
-import { he } from 'date-fns/locale';
-import { ChevronRight, ChevronLeft } from 'lucide-react';
-
-// הצגת תאריך בעברית:
-format(new Date(date), 'EEEE, d בMMMM', { locale: he })
-
-// עיצוב: sticky top-0, backdrop-blur, border-b, shadow-sm
-// חיצים: ChevronRight (קודם), ChevronLeft (הבא) - כי RTL
-// כפתור "חזור להיום" מופיע רק כשלא ביום הנוכחי
-```
-
-### ServiceCallCard - כרטיס קריאת שירות
-כרטיס עם border צבעוני לפי עדיפות, מציג: כותרת, קטגוריה (עם אייקון), עדיפות (badge), סטטוס (badge), שם לקוח, מיקום (מתוך `locationDisplay` - למשל: "קומת קרקע > כיתות > כיתה א'1"), וזמן פתיחה. עיצוב: `rounded-2xl shadow-sm border` עם צבע רקע לפי סטטוס.
+### ServiceCallCard - כרטיס פנייה
+כרטיס עם border צבעוני לפי דחיפות (אם נקבעה). מציג: **שם בית ספר**, קטגוריה (עם אייקון), דחיפות (badge, רק אם נקבעה), סטטוס (badge), שם לקוח, מיקום (מתוך `locationDisplay`), אחרון שטיפל, וזמן פתיחה. עיצוב: `rounded-2xl shadow-sm border` עם צבע רקע לפי סטטוס.
 
 ### StatusControl - כפתורי שינוי סטטוס
-שורת כפתורים שמייצגים את מכונת המצבים: new → assigned → in_progress → resolved → closed. כל סטטוס בצבע אחר. הכפתור הפעיל בולט, השאר מעומעמים. כפתור "הבא בתור" תמיד מודגש.
+שורת כפתורים: **התקבל** (new) → **בטיפול** (in_progress) → **ממתין** (waiting) → **הושלם** (resolved) → **סגור** (closed). כל סטטוס בצבע אחר. הכפתור הפעיל בולט. **כל שינוי סטטוס מתועד ב-history אוטומטית** ומעדכן את `lastHandledBy`.
 
-### AssignCallModal - חלון שיבוץ קריאה
-Modal שמציג את 5 הטכנאים עם: שם, התמחויות, מספר קריאות פתוחות (currentLoad). טכנאי עם עומס נמוך מודגש בירוק. לחיצה על טכנאי → שיבוץ הקריאה.
+### ClockInOut - כניסה/יציאה לבית ספר
+קומפוננטה במסך הראשי של הטכנאי:
+- **כפתור "כניסה"** → נפתח modal לבחירת בית ספר → יוצר `work_session` עם `clockIn`
+- **כפתור "יציאה"** (מופיע כשיש session פתוח) → מסיים את ה-session עם `clockOut`
+- מציג טיימר חי של כמה זמן הטכנאי באתר
+- מציג את שם בית הספר הנוכחי
+
+### SendMessageModal - שליחת הודעה ללקוח
+Modal שמאפשר לטכנאי להזין הודעה חופשית ולשלוח ללקוח:
+- **ערוצי שליחה:** מייל / WhatsApp / Push Notification
+- ההודעה נשמרת גם כ-note בפנייה וגם ב-history
 
 ### LocationPicker - משפך חכם לבחירת מיקום
-קומפוננטה של 3 dropdowns מדורגים לבחירת מיקום בבית הספר. זרימה:
-
+3 dropdowns מדורגים: קומה → סוג חדר → חדר ספציפי.
 ```
 [בחר קומה ▼]  →  [בחר סוג חדר ▼]  →  [בחר חדר ▼]
-     ↓ (נבחר)         ↓ (נבחר)           ↓ (נבחר)
-"קומת קרקע"       "כיתות"           "כיתה א'1"
 ```
+- כל dropdown נעול עד שהקודם נבחר
+- שינוי בחירה מוקדמת מאפס את השלבים הבאים
+- מתחת: טקסט סיכום "קומת קרקע > כיתות > כיתה א'1"
+- הנתונים נטענים מ-`schools/{schoolId}/meta/locations`
 
-**התנהגות:**
-- Dropdown ראשון (קומה) - תמיד פעיל, מציג את כל הקומות
-- Dropdown שני (סוג חדר) - נעול (`disabled`) עד שנבחרה קומה, מציג רק את הסוגים של הקומה שנבחרה
-- Dropdown שלישי (חדר) - נעול עד שנבחר סוג, מציג רק את החדרים מהסוג שנבחר
-- שינוי קומה → מאפס סוג + חדר
-- שינוי סוג → מאפס חדר
-- מתחת ל-3 ה-dropdowns מוצג טקסט סיכום: `"📍 קומת קרקע > כיתות > כיתה א'1"`
-- הקומפוננטה מקבלת `value` ו-`onChange` props - מחזירה אובייקט location מלא
-
-**Props:**
-```jsx
-<LocationPicker
-  locations={locationsData}     // מבנה הנתונים מ-meta/locations
-  value={selectedLocation}      // { floorId, categoryId, roomId } | null
-  onChange={(location) => {}}   // מחזיר אובייקט מלא עם ids + labels
-/>
-```
-
-**עיצוב:**
-- 3 select elements בשורה אחת (flex row, gap-2) - במובייל עוברים לעמודה (flex-col)
-- Select נעול: `opacity-50 cursor-not-allowed bg-gray-100`
-- Select פעיל: `border-primary focus:ring-2 focus:ring-primary/20`
-- סיכום מיקום: טקסט קטן בצבע muted מתחת ל-selects
+### InventoryManager - ניהול מלאי (מנהל טכנאים)
+טבלה של פריטי ציוד עם: שם, קטגוריה, כמות במלאי, סף מינימום. התראה ויזואלית על פריטים מתחת לסף.
 
 ---
 
 ## מה כל תפקיד ממלא
 
-### לקוח - פותח קריאה:
-- **שם ופרטי קשר** (או אוטומטי מהחשבון)
-- **קטגוריה** - מחשב, מדפסת, רשת, תוכנה, אחר
+### לקוח (client) - פותח פנייה:
+**רושם:**
+- **קטגוריה** - חומרה / תוכנה / רשת / אבטחה / מדפסות / אחר (בחירה קשיחה)
 - **תיאור התקלה** - טקסט חופשי
-- **דחיפות** - נמוכה / בינונית / גבוהה / קריטית
-- **מיקום** - משפך חכם (cascading select) בשלושה שלבים:
-  1. **בחירת קומה** - dropdown ראשון (למשל: "קומת קרקע", "קומה 1")
-  2. **בחירת סוג חדר** - dropdown שני שמתעדכן לפי הקומה שנבחרה (למשל: "כיתות", "מעבדות", "משרדים")
-  3. **בחירת חדר ספציפי** - dropdown שלישי שמתעדכן לפי הסוג שנבחר (למשל: "כיתה א'1", "מעבדת מחשבים")
-  - כל dropdown נעול עד שהקודם נבחר
-  - שינוי בחירה בשלב מוקדם מאפס את השלבים הבאים
-  - מציג את הבחירה המלאה כטקסט: "קומת קרקע > כיתות > כיתה א'1"
-  - הנתונים נטענים מ-Firestore (`meta/locations`)
+- **מיקום** - משפך חכם: קומה → סוג חדר → חדר ספציפי
 
-### טכנאי - מעדכן תוך כדי טיפול:
-- **סטטוס** - התקבל → בטיפול → ממתין לחלק → הושלם
-- **הערות טיפול** - תיעוד מה נעשה
-- **שעות עבודה** - התחלה/סיום (טיימר) או הזנה ידנית
-- **חומרים/חלקים** - אם הוחלף משהו (אופציונלי)
+**מקבל:**
+- רשימת הפניות שלו עם סטטוס מעודכן בזמן אמת
+- הודעות מהטכנאי (מייל/ווצאפ/נוטיפיקציה)
 
-### מנהל - מעדכן:
-- **שיבוץ טכנאי** לקריאה
-- **שינוי עדיפות** אם צריך
-- **סגירת קריאה** סופית
+**לא ממלא:** דחיפות (נקבעת ע"י טכנאי/מנהל)
+
+### טכנאי (technician) - מטפל בפניות:
+**רואה:** את **כל** הפניות מכל בתי הספר (לא רק "שלו")
+
+**רושם:**
+- **שינוי סטטוס** - התקבל → בטיפול → ממתין → הושלם → סגור
+- **קביעת דחיפות** - נמוכה / בינונית / גבוהה / קריטית
+- **הערות טיפול** - תיעוד מה נעשה (טקסט חופשי)
+- **ציוד שסופק** - בחירה מרשימת מלאי קשיחה + כמות
+- **הודעה ללקוח** - טקסט חופשי שנשלח במייל/ווצאפ/נוטיפיקציה
+- **כניסה/יציאה לבית ספר** - שעון נוכחות ברמת ביקור
+- **סגירת פנייה** - טכנאי יכול לסגור פנייה
+
+**מקבל:**
+- כל הפניות מכל בתי הספר
+- כל שינוי בזמן אמת (טכנאי אחר עדכן → רואה מיד)
+
+### מנהל טכנאים (tech_manager) - **גם טכנאי** + ניהול:
+**כל מה שיש לטכנאי**, ובנוסף:
+- **תצוגה כוללת** - כל הפניות מכל בתי הספר ביחד, או סינון לבית ספר בודד
+- **דוחות** - זמן טיפול, פילוח קטגוריות, שעות עבודה לפי טכנאי/בית ספר
+- **ניהול מלאי** - הוספה/הסרה/עדכון כמויות של פריטי ציוד
+- **הגדרות בתי ספר חדשים** - הגדרת מיקומים, קטגוריות, אינטגרציית Google
+
+### מנהל בית ספר (school_admin) - צפייה ודוחות:
+**רואה:** רק את בית הספר שלו
+
+**מקבל:**
+- סיכום פניות (פתוחות, בטיפול, ממתינות, סגורות)
+- דוחות ברמת בית ספר (זמני טיפול, פילוח קטגוריות)
+- יכולת לרדת לפנייה ספציפית ולקרוא את הפרטים וההיסטוריה
+
+**לא עושה:** לא מטפל בפניות, לא משנה סטטוס, לא מוסיף הערות
 
 ---
 
 ## זרימת עבודה (Workflow)
 
 ```
-לקוח פותח קריאה (status: "new")
+לקוח פותח פנייה (status: "new", priority: null)
        ↓
-מנהל רואה קריאה חדשה ב-Dashboard → משבץ לטכנאי (status: "assigned")
+כל הטכנאים רואים את הפנייה ברשימה
        ↓
-טכנאי רואה קריאה חדשה → לוחץ "התחלתי טיפול" (status: "in_progress")
+טכנאי נכנס לפנייה → קובע דחיפות + לוחץ "בטיפול" (status: "in_progress")
+       ↓                  (lastHandledBy מתעדכן אוטומטית)
+טכנאי מוסיף הערות, מספק ציוד, שולח הודעה ללקוח
        ↓
-טכנאי מוסיף הערות תיעוד תוך כדי עבודה
+[אם צריך להמתין] → טכנאי לוחץ "ממתין" (status: "waiting")
        ↓
-טכנאי לוחץ "טופל" (status: "resolved")
+טכנאי (אותו אחד או אחר) חוזר לפנייה → "בטיפול" → "הושלם" (status: "resolved")
        ↓
-מנהל/לקוח מאשר → (status: "closed")
+טכנאי סוגר את הפנייה (status: "closed")
+
+כל שינוי מתועד אוטומטית ב-history עם: מי, מה, מתי
+```
+
+### Google Forms Integration
+חלק מבתי הספר אוספים פניות דרך Google Forms:
+```
+לקוח ממלא Google Form
+       ↓
+תשובות נכנסות ל-Google Sheet מקושר
+       ↓
+המערכת מושכת (poll) שורות חדשות מהשיט → יוצרת פניות עם source: "google_form"
+       ↓
+הפניות נכנסות לזרימה הרגילה
 ```
 
 ---
 
 ## Storage Service - דפוס real-time subscriptions
 
-בנה את `src/services/storage.js` בדפוס הבא - כל קריאה מחזירה unsubscribe function לניקוי, כל עדכון קריטי דרך Firestore transaction.
+בנה את `src/services/storage.js` - כל subscribe מחזיר unsubscribe function.
 
-**חשוב: כל query חייב לסנן לפי `schoolId`** - המשתמש רואה רק נתונים של בית הספר שלו.
-ה-`schoolId` מגיע מהמשתמש המחובר (`currentUser.schoolId`).
+**הבדל חשוב:**
+- **טכנאי/מנהל טכנאים** - רואים פניות מ**כל** בתי הספר (אפשר לסנן לבית ספר בודד)
+- **לקוח** - רואה רק פניות **שלו** בבית הספר שלו
+- **מנהל בית ספר** - רואה רק פניות של **בית הספר שלו**
 
 ```javascript
 import { db } from './firebase';
 import {
   collection, doc, onSnapshot, setDoc, updateDoc,
   addDoc, query, where, orderBy, runTransaction,
-  serverTimestamp
+  serverTimestamp, arrayUnion
 } from 'firebase/firestore';
 
 export const storageService = {
 
-    // ========== קריאות שירות ==========
+    // ========== פניות ==========
 
-    // real-time subscription לכל הקריאות של בית הספר (למנהל)
-    subscribeToAllCalls(schoolId, callback) {
+    // כל הפניות - לטכנאים ומנהל טכנאים (חוצה בתי ספר)
+    subscribeToAllCalls(callback) {
+        const q = query(
+            collection(db, 'service_calls'),
+            orderBy('createdAt', 'desc')
+        );
+        return onSnapshot(q, (snapshot) => {
+            const calls = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            callback(calls);
+        });
+    },
+
+    // פניות לפי בית ספר - למנהל בית ספר
+    subscribeToCallsBySchool(schoolId, callback) {
         const q = query(
             collection(db, 'service_calls'),
             where('schoolId', '==', schoolId),
             orderBy('createdAt', 'desc')
         );
         return onSnapshot(q, (snapshot) => {
-            const calls = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const calls = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
             callback(calls);
         });
     },
 
-    // real-time subscription לקריאות של טכנאי ספציפי (בבית ספר ספציפי)
-    subscribeToCallsByTechnician(schoolId, techId, callback) {
-        const q = query(
-            collection(db, 'service_calls'),
-            where('schoolId', '==', schoolId),
-            where('assignedTo', '==', techId),
-            orderBy('createdAt', 'desc')
-        );
-        return onSnapshot(q, (snapshot) => {
-            const calls = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            callback(calls);
-        });
-    },
-
-    // real-time subscription לקריאות של לקוח (בבית ספר ספציפי)
+    // פניות של לקוח ספציפי
     subscribeToCallsByClient(schoolId, clientId, callback) {
         const q = query(
             collection(db, 'service_calls'),
@@ -692,21 +784,32 @@ export const storageService = {
             orderBy('createdAt', 'desc')
         );
         return onSnapshot(q, (snapshot) => {
-            const calls = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const calls = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
             callback(calls);
         });
     },
 
-    // יצירת קריאת שירות חדשה (schoolId חובה)
-    async createServiceCall(schoolId, callData) {
+    // יצירת פנייה חדשה (לקוח)
+    async createServiceCall(callData) {
+        const historyEntry = {
+            id: `hist_${Date.now()}`,
+            action: 'created',
+            description: 'פנייה נפתחה',
+            performedBy: callData.clientId,
+            performedByName: callData.clientName,
+            timestamp: new Date().toISOString()
+        };
         return await addDoc(collection(db, 'service_calls'), {
             ...callData,
-            schoolId,
+            priority: null,              // דחיפות נקבעת ע"י טכנאי
             status: 'new',
-            assignedTo: null,
-            assignedTechName: null,
-            assignedAt: null,
+            lastHandledBy: null,
+            lastHandledByName: null,
+            lastHandledAt: null,
             notes: [],
+            suppliedEquipment: [],
+            history: [historyEntry],
+            source: callData.source || 'app',
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
             resolvedAt: null,
@@ -714,151 +817,272 @@ export const storageService = {
         });
     },
 
-    // שיבוץ קריאה לטכנאי (עם transaction לעדכון עומס)
-    async assignCall(callId, techId, techName) {
-        await runTransaction(db, async (transaction) => {
-            const callRef = doc(db, 'service_calls', callId);
-            const techRef = doc(db, 'technicians', techId);
-
-            const techDoc = await transaction.get(techRef);
-            if (!techDoc.exists()) throw new Error("טכנאי לא נמצא");
-
-            transaction.update(callRef, {
-                assignedTo: techId,
-                assignedTechName: techName,
-                assignedAt: serverTimestamp(),
-                status: 'assigned',
-                updatedAt: serverTimestamp()
-            });
-
-            transaction.update(techRef, {
-                currentLoad: (techDoc.data().currentLoad || 0) + 1
-            });
-        });
-    },
-
-    // עדכון סטטוס קריאה (עם transaction להורדת עומס כשנסגר)
-    async updateCallStatus(callId, newStatus) {
+    // עדכון סטטוס פנייה + תיעוד ב-history + עדכון lastHandledBy
+    async updateCallStatus(callId, newStatus, techId, techName) {
         const callRef = doc(db, 'service_calls', callId);
 
         await runTransaction(db, async (transaction) => {
             const callDoc = await transaction.get(callRef);
-            if (!callDoc.exists()) throw new Error("קריאה לא נמצאה");
+            if (!callDoc.exists()) throw new Error("פנייה לא נמצאה");
 
             const callData = callDoc.data();
-            const updates = { status: newStatus, updatedAt: serverTimestamp() };
+            const updates = {
+                status: newStatus,
+                lastHandledBy: techId,
+                lastHandledByName: techName,
+                lastHandledAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
+            };
 
-            if (newStatus === 'resolved') {
-                updates.resolvedAt = serverTimestamp();
-            }
-            if (newStatus === 'closed') {
-                updates.closedAt = serverTimestamp();
-                // הורד עומס מהטכנאי
-                if (callData.assignedTo) {
-                    const techRef = doc(db, 'technicians', callData.assignedTo);
-                    const techDoc = await transaction.get(techRef);
-                    if (techDoc.exists()) {
-                        transaction.update(techRef, {
-                            currentLoad: Math.max(0, (techDoc.data().currentLoad || 0) - 1)
-                        });
-                    }
-                }
-            }
+            if (newStatus === 'resolved') updates.resolvedAt = serverTimestamp();
+            if (newStatus === 'closed') updates.closedAt = serverTimestamp();
+
+            // הוסף ל-history
+            const history = callData.history || [];
+            history.push({
+                id: `hist_${Date.now()}`,
+                action: 'status_changed',
+                description: `סטטוס שונה ל: ${newStatus}`,
+                performedBy: techId,
+                performedByName: techName,
+                oldValue: callData.status,
+                newValue: newStatus,
+                timestamp: new Date().toISOString()
+            });
+            updates.history = history;
 
             transaction.update(callRef, updates);
         });
     },
 
-    // הוספת הערת תיעוד
-    async addNote(callId, noteData) {
+    // קביעת/שינוי דחיפות
+    async updateCallPriority(callId, priority, techId, techName) {
         const callRef = doc(db, 'service_calls', callId);
 
         await runTransaction(db, async (transaction) => {
             const callDoc = await transaction.get(callRef);
-            if (!callDoc.exists()) throw new Error("קריאה לא נמצאה");
+            if (!callDoc.exists()) throw new Error("פנייה לא נמצאה");
 
-            const notes = callDoc.data().notes || [];
-            notes.push({
-                ...noteData,
-                id: `note_${Date.now()}`,
+            const callData = callDoc.data();
+            const history = callData.history || [];
+            history.push({
+                id: `hist_${Date.now()}`,
+                action: 'priority_set',
+                description: `דחיפות נקבעה: ${priority}`,
+                performedBy: techId,
+                performedByName: techName,
+                oldValue: callData.priority,
+                newValue: priority,
                 timestamp: new Date().toISOString()
             });
 
-            transaction.update(callRef, { notes, updatedAt: serverTimestamp() });
+            transaction.update(callRef, {
+                priority,
+                lastHandledBy: techId,
+                lastHandledByName: techName,
+                lastHandledAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+                history
+            });
         });
     },
 
-    // ========== טכנאים ==========
+    // הוספת הערת טיפול
+    async addNote(callId, noteData, techId, techName) {
+        const callRef = doc(db, 'service_calls', callId);
 
-    // טכנאים מסוננים לפי בית ספר
-    subscribeToTechnicians(schoolId, callback) {
+        await runTransaction(db, async (transaction) => {
+            const callDoc = await transaction.get(callRef);
+            if (!callDoc.exists()) throw new Error("פנייה לא נמצאה");
+
+            const callData = callDoc.data();
+            const notes = callData.notes || [];
+            const history = callData.history || [];
+
+            notes.push({
+                ...noteData,
+                id: `note_${Date.now()}`,
+                techId,
+                techName,
+                timestamp: new Date().toISOString()
+            });
+
+            history.push({
+                id: `hist_${Date.now()}`,
+                action: 'note_added',
+                description: `הערה נוספה: "${noteData.text.substring(0, 50)}..."`,
+                performedBy: techId,
+                performedByName: techName,
+                timestamp: new Date().toISOString()
+            });
+
+            transaction.update(callRef, {
+                notes, history,
+                lastHandledBy: techId,
+                lastHandledByName: techName,
+                lastHandledAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
+            });
+        });
+    },
+
+    // הוספת ציוד שסופק (מרשימת מלאי)
+    async addSuppliedEquipment(callId, itemId, itemName, quantity, techId, techName) {
+        const callRef = doc(db, 'service_calls', callId);
+        const invRef = doc(db, 'inventory_items', itemId);
+
+        await runTransaction(db, async (transaction) => {
+            const callDoc = await transaction.get(callRef);
+            const invDoc = await transaction.get(invRef);
+            if (!callDoc.exists()) throw new Error("פנייה לא נמצאה");
+            if (!invDoc.exists()) throw new Error("פריט לא נמצא במלאי");
+
+            const callData = callDoc.data();
+            const invData = invDoc.data();
+
+            // הורד מהמלאי
+            transaction.update(invRef, {
+                inStock: Math.max(0, (invData.inStock || 0) - quantity)
+            });
+
+            const suppliedEquipment = callData.suppliedEquipment || [];
+            const history = callData.history || [];
+
+            suppliedEquipment.push({
+                itemId, itemName, quantity, techId, techName,
+                timestamp: new Date().toISOString()
+            });
+
+            history.push({
+                id: `hist_${Date.now()}`,
+                action: 'equipment_supplied',
+                description: `סופק: ${itemName} x${quantity}`,
+                performedBy: techId,
+                performedByName: techName,
+                timestamp: new Date().toISOString()
+            });
+
+            transaction.update(callRef, {
+                suppliedEquipment, history,
+                lastHandledBy: techId,
+                lastHandledByName: techName,
+                lastHandledAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
+            });
+        });
+    },
+
+    // ========== שעות עבודה (כניסה/יציאה לבית ספר) ==========
+
+    // יצירת session כניסה
+    async clockIn(techId, techName, schoolId, schoolName) {
+        return await addDoc(collection(db, 'work_sessions'), {
+            techId, techName, schoolId, schoolName,
+            clockIn: serverTimestamp(),
+            clockOut: null,
+            durationMinutes: null,
+            date: new Date().toISOString().split('T')[0],
+            createdAt: serverTimestamp()
+        });
+    },
+
+    // סיום session יציאה
+    async clockOut(sessionId) {
+        const ref = doc(db, 'work_sessions', sessionId);
+        await runTransaction(db, async (transaction) => {
+            const sessionDoc = await transaction.get(ref);
+            if (!sessionDoc.exists()) throw new Error("session לא נמצא");
+            const data = sessionDoc.data();
+            const clockIn = data.clockIn?.toDate?.() || new Date(data.clockIn);
+            const now = new Date();
+            const durationMinutes = Math.round((now - clockIn) / 60000);
+            transaction.update(ref, {
+                clockOut: serverTimestamp(),
+                durationMinutes
+            });
+        });
+    },
+
+    // session פתוח של טכנאי (אם יש)
+    subscribeToActiveSession(techId, callback) {
         const q = query(
-            collection(db, 'technicians'),
-            where('schoolId', '==', schoolId)
+            collection(db, 'work_sessions'),
+            where('techId', '==', techId),
+            where('clockOut', '==', null)
         );
         return onSnapshot(q, (snapshot) => {
-            const techs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            callback(techs);
+            const sessions = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            callback(sessions[0] || null);
         });
+    },
+
+    // sessions לפי טכנאי ותאריך (לדוחות)
+    subscribeToWorkSessions(filters, callback) {
+        let q = query(collection(db, 'work_sessions'), orderBy('clockIn', 'desc'));
+        // filters יכול לכלול: techId, schoolId, dateFrom, dateTo
+        return onSnapshot(q, (snapshot) => {
+            let sessions = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            // סינון client-side לפי filters
+            if (filters.techId) sessions = sessions.filter(s => s.techId === filters.techId);
+            if (filters.schoolId) sessions = sessions.filter(s => s.schoolId === filters.schoolId);
+            callback(sessions);
+        });
+    },
+
+    // ========== מלאי ציוד ==========
+
+    subscribeToInventory(callback) {
+        return onSnapshot(collection(db, 'inventory_items'), (snapshot) => {
+            const items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            callback(items);
+        });
+    },
+
+    async updateInventoryItem(itemId, data) {
+        await updateDoc(doc(db, 'inventory_items', itemId), data);
+    },
+
+    async addInventoryItem(data) {
+        return await addDoc(collection(db, 'inventory_items'), { ...data, active: true });
     },
 
     // ========== בתי ספר ==========
 
-    // טעינת פרטי בית ספר
-    subscribeToSchool(schoolId, callback) {
-        const docRef = doc(db, 'schools', schoolId);
-        return onSnapshot(docRef, (docSnap) => {
-            if (docSnap.exists()) {
-                callback({ id: docSnap.id, ...docSnap.data() });
-            } else {
-                callback(null);
-            }
+    subscribeToAllSchools(callback) {
+        return onSnapshot(collection(db, 'schools'), (snapshot) => {
+            const schools = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            callback(schools);
         });
     },
 
-    // ========== קטגוריות (ברמת בית ספר) ==========
+    subscribeToSchool(schoolId, callback) {
+        return onSnapshot(doc(db, 'schools', schoolId), (docSnap) => {
+            callback(docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } : null);
+        });
+    },
+
+    // ========== קטגוריות + מיקומים (ברמת בית ספר) ==========
 
     subscribeToCategories(schoolId, callback) {
         const docRef = doc(db, 'schools', schoolId, 'meta', 'categories');
         return onSnapshot(docRef, (docSnap) => {
-            if (docSnap.exists() && docSnap.data().list) {
-                callback(docSnap.data().list);
-            } else {
-                callback([
-                    { value: "hardware", label: "חומרה", icon: "Monitor" },
-                    { value: "software", label: "תוכנה", icon: "Code" },
-                    { value: "network", label: "רשת", icon: "Wifi" },
-                    { value: "security", label: "אבטחה", icon: "Shield" },
-                    { value: "printer", label: "מדפסות", icon: "Printer" },
-                    { value: "other", label: "אחר", icon: "HelpCircle" }
-                ]);
-            }
+            callback(docSnap.exists() && docSnap.data().list ? docSnap.data().list : DEFAULT_CATEGORIES);
         });
     },
 
     async updateCategories(schoolId, list) {
-        const docRef = doc(db, 'schools', schoolId, 'meta', 'categories');
-        await setDoc(docRef, { list }, { merge: true });
+        await setDoc(doc(db, 'schools', schoolId, 'meta', 'categories'), { list }, { merge: true });
     },
 
-    // ========== מיקומים (ברמת בית ספר) ==========
-
-    // real-time subscription למבנה המיקומים של בית הספר
     subscribeToLocations(schoolId, callback) {
         const docRef = doc(db, 'schools', schoolId, 'meta', 'locations');
         return onSnapshot(docRef, (docSnap) => {
-            if (docSnap.exists() && docSnap.data().floors) {
-                callback(docSnap.data());
-            } else {
-                // נתוני ברירת מחדל - מבנה בית ספר עם 2 קומות
-                callback(DEFAULT_LOCATIONS);
-            }
+            callback(docSnap.exists() && docSnap.data().floors ? docSnap.data() : DEFAULT_LOCATIONS);
         });
     },
 
     async updateLocations(schoolId, locationsData) {
-        const docRef = doc(db, 'schools', schoolId, 'meta', 'locations');
-        await setDoc(docRef, locationsData, { merge: true });
+        await setDoc(doc(db, 'schools', schoolId, 'meta', 'locations'), locationsData, { merge: true });
     }
 };
 ```
@@ -868,7 +1092,9 @@ export const storageService = {
 ## Auth Service
 
 בנה את `src/services/authService.js`.
-**חשוב:** בעת התחברות והרשמה, ה-`schoolId` נטען ונשמר כחלק מנתוני המשתמש. כל פעולה באפליקציה משתמשת ב-`currentUser.schoolId` כדי לסנן נתונים.
+**חשוב:**
+- **טכנאי/מנהל טכנאים** - `schoolId` = null (רואים הכל)
+- **לקוח/מנהל בית ספר** - `schoolId` מחייב (רואים רק בית ספר שלהם)
 
 ```javascript
 import { auth, db } from './firebase';
@@ -881,25 +1107,19 @@ import {
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 
 export const authService = {
-    // התחברות - מחזיר user עם schoolId
     async login(email, password) {
         const result = await signInWithEmailAndPassword(auth, email, password);
         const userDoc = await getDoc(doc(db, 'users', result.user.uid));
         return { uid: result.user.uid, ...userDoc.data() };
-        // userData כולל: role, schoolId, schoolName, displayName, phone...
     },
 
-    // הרשמה - schoolId חובה
-    async register(email, password, displayName, role, phone, schoolId, schoolName) {
+    async register({ email, password, displayName, role, phone, schoolId, schoolName }) {
         const result = await createUserWithEmailAndPassword(auth, email, password);
         const userData = {
             uid: result.user.uid,
-            email,
-            displayName,
-            role,
-            schoolId,           // שיוך לבית ספר
-            schoolName,         // denormalized לתצוגה
-            phone,
+            email, displayName, role, phone,
+            schoolId: schoolId || null,
+            schoolName: schoolName || null,
             active: true,
             createdAt: serverTimestamp()
         };
@@ -907,18 +1127,15 @@ export const authService = {
         return userData;
     },
 
-    // התנתקות
     async logout() {
         await signOut(auth);
     },
 
-    // מעקב אחרי מצב אימות - מחזיר user מלא כולל schoolId
     onAuthChange(callback) {
         return onAuthStateChanged(auth, async (firebaseUser) => {
             if (firebaseUser) {
                 const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
                 callback({ uid: firebaseUser.uid, ...userDoc.data() });
-                // callback מקבל: { uid, email, displayName, role, schoolId, schoolName, phone, ... }
             } else {
                 callback(null);
             }
@@ -934,16 +1151,17 @@ export const authService = {
 - **כיוון:** RTL מלא (כבר מוגדר ב-index.css וב-index.html)
 - **שפה:** עברית
 - **צבעים לפי סטטוס:**
-  - New: אפור (`bg-slate-100 text-slate-700`)
-  - Assigned: צהוב (`bg-amber-100 text-amber-700`)
-  - In Progress: כחול (`bg-blue-100 text-blue-700`)
-  - Resolved: ירוק (`bg-emerald-100 text-emerald-700`)
-  - Closed: סגול (`bg-purple-100 text-purple-700`)
-- **צבעים לפי עדיפות:**
-  - Low: ירוק (`bg-green-100 text-green-700`)
-  - Medium: צהוב (`bg-yellow-100 text-yellow-700`)
-  - High: כתום (`bg-orange-100 text-orange-700`)
-  - Urgent: אדום (`bg-red-100 text-red-700`)
+  - התקבל (new): אפור (`bg-slate-100 text-slate-700`)
+  - בטיפול (in_progress): כחול (`bg-blue-100 text-blue-700`)
+  - ממתין (waiting): צהוב (`bg-amber-100 text-amber-700`)
+  - הושלם (resolved): ירוק (`bg-emerald-100 text-emerald-700`)
+  - סגור (closed): סגול (`bg-purple-100 text-purple-700`)
+- **צבעים לפי דחיפות:**
+  - לא נקבעה (null): אפור (`bg-gray-100 text-gray-500`)
+  - נמוכה (low): ירוק (`bg-green-100 text-green-700`)
+  - בינונית (medium): צהוב (`bg-yellow-100 text-yellow-700`)
+  - גבוהה (high): כתום (`bg-orange-100 text-orange-700`)
+  - קריטית (urgent): אדום (`bg-red-100 text-red-700`)
 - **Responsive:** Mobile First - טכנאים עובדים מהטלפון בשטח
 - **אייקונים:** Lucide React
 - **כרטיסים:** `rounded-2xl shadow-sm border` עם צבע רקע לפי סטטוס
@@ -953,20 +1171,21 @@ export const authService = {
 
 ## דגשים חשובים
 
-1. **Multi-Tenant** - כל הנתונים מסוננים לפי `schoolId` של המשתמש המחובר. אין אפשרות לראות נתונים של בית ספר אחר. ה-`schoolId` מגיע מ-`currentUser.schoolId` שנטען ב-login.
-2. **Mobile First** - טכנאים עובדים מהטלפון, העיצוב חייב להיות מותאם מובייל קודם
-3. **Real-time** - כל העדכונים ב-real-time דרך Firestore `onSnapshot` subscriptions. כל subscribe מחזיר unsubscribe function שצריך לקרוא ב-useEffect cleanup
-4. **Transactions** - שימוש ב-Firestore `runTransaction` לעדכון עומס טכנאים (`currentLoad`) ולשינויי סטטוס שמשפיעים על מספר documents
-5. **5 טכנאים בלבד** - האפליקציה מותאמת ל-5 טכנאים לכל בית ספר, לא צריך pagination מורכב
-6. **SPA** - Single Page Application, אין צורך ב-SSR
-7. **ProtectedRoute** - כל route עטוף ב-guard שבודק auth + role
-8. **Unsubscribe pattern** - כל useEffect שעושה subscribe חייב לעשות cleanup, ולכלול את `schoolId` ב-dependencies:
+1. **Multi-Tenant** - הטכנאים הם צוות גלובלי שרואה הכל. לקוחות ומנהלי בתי ספר רואים רק את בית הספר שלהם.
+2. **אין שיבוץ** - כל טכנאי רואה את כל הפניות. מי שנוגע בפנייה מתועד כ-`lastHandledBy`. כמה טכנאים יכולים לטפל באותה פנייה.
+3. **Audit Log** - כל שינוי בפנייה (סטטוס, דחיפות, הערה, ציוד, הודעה) מתועד אוטומטית ב-`history` עם: מי, מה, מתי.
+4. **Mobile First** - טכנאים עובדים מהטלפון בשטח
+5. **Real-time** - כל העדכונים ב-real-time דרך Firestore `onSnapshot`. כל subscribe מחזיר unsubscribe function שצריך לקרוא ב-useEffect cleanup
+6. **Transactions** - שימוש ב-`runTransaction` כשמעדכנים כמה documents (למשל: ציוד שסופק → עדכון מלאי + עדכון פנייה)
+7. **5 טכנאים בלבד** - צוות קטן וקבוע, לא צריך pagination
+8. **SPA** - Single Page Application
+9. **ProtectedRoute** - guard שבודק auth + role
+10. **Unsubscribe pattern:**
 ```jsx
 useEffect(() => {
-    if (!currentUser?.schoolId) return;
-    const unsubscribe = storageService.subscribeToAllCalls(currentUser.schoolId, setCalls);
+    const unsubscribe = storageService.subscribeToAllCalls(setCalls);
     return () => unsubscribe();
-}, [currentUser?.schoolId]);
+}, []);
 ```
 
 ---
@@ -975,53 +1194,51 @@ useEffect(() => {
 
 ### שלב 0 - תשתית
 - Setup פרויקט, Firebase config, מבנה תיקיות, routing בסיסי
-- זה 30 דקות עבודה שחוסכות בלאגן אחר כך
+- הגדרת 4 roles ב-ProtectedRoute
 
-### שלב 1 - דמו ויזואלי לבוס
-> מטרה: מסכים יפים עם דאטה מדומה - "תראה מה בנינו"
+### שלב 1 - דמו ויזואלי
+> מטרה: מסכים יפים עם mock data
 
-- דף התחברות מעוצב
-- Dashboard מנהל עם כרטיסיות סיכום (קריאות פתוחות, עומס טכנאים, דחופים)
-- רשימת קריאות שירות מעוצבת עם badges צבעוניים
-- תצוגת טכנאים עם סטטוס
-- **הכל עם mock data קשיח - בלי Firebase אמיתי עדיין**
+- דף התחברות
+- Dashboard טכנאי/מנהל - רשימת פניות מכל בתי הספר עם badges צבעוניים
+- כרטיס פנייה עם סטטוס + דחיפות + בית ספר + מיקום
+- כפתורי שינוי סטטוס (התקבל → בטיפול → ממתין → הושלם → סגור)
+- **הכל עם mock data קשיח**
 
 ### שלב 2 - MVP עובד
 > מטרה: מערכת שאפשר להתחיל לעבוד איתה מחר
 
 - חיבור Firebase אמיתי (Auth + Firestore)
-- Login/Logout
-- לקוח: פתיחת קריאה חדשה
-- מנהל: צפייה בקריאות + שיבוץ לטכנאי
-- טכנאי: צפייה בקריאות שלו + שינוי סטטוס
-- Real-time updates (onSnapshot)
-- ProtectedRoute לפי role
+- Login/Logout + ProtectedRoute לפי role
+- לקוח: פתיחת פנייה (קטגוריה + תיאור + מיקום)
+- טכנאי: צפייה בכל הפניות + שינוי סטטוס + קביעת דחיפות + הערות
+- מנהל טכנאים: כמו טכנאי + סינון לפי בית ספר
+- מנהל בית ספר: צפייה בפניות בית הספר שלו
+- Real-time updates
+- כניסה/יציאה לבית ספר (שעון נוכחות)
+- היסטוריה (audit log) בכל פנייה
 
 ### שלב 3 - Quick Wins
-> מטרה: פיצ'רים שמשדרגים משמעותית אבל קלים לפיתוח
+> מטרה: פיצ'רים שמשדרגים משמעותית
 
-- הוספת הערות תיעוד לקריאה
-- **רישום שעות עבודה** - טיימר התחלה/סיום + הזנה ידנית, סיכום שעות בכל קריאה
-- סינון קריאות לפי סטטוס/עדיפות/קטגוריה
-- DateNavigation - ניווט לפי תאריכים
-- Badge עומס על כל טכנאי
-- חיפוש חופשי בקריאות
-- PWA בסיסי (manifest + service worker) - התקנה כאפליקציה
+- שליחת הודעה ללקוח (מייל/ווצאפ/נוטיפיקציה)
+- ציוד שסופק מרשימת מלאי + ניהול מלאי
+- סינון פניות לפי סטטוס/דחיפות/קטגוריה/בית ספר
+- חיפוש חופשי בפניות
+- הגדרות בית ספר חדש (מיקומים, קטגוריות)
+- PWA בסיסי - התקנה כאפליקציה
 
 ### שלב 4 - השקעה גדולה יותר
-> מטרה: פיצ'רים שדורשים עבודה אבל חשובים לטווח ארוך
+> מטרה: פיצ'רים חשובים לטווח ארוך
 
-- דוחות וסטטיסטיקות (זמן טיפול ממוצע, עומס טכנאים, פילוח קטגוריות)
-- **דוחות שעות לחשבונות** - סיכום שעות לפי לקוח (לחיוב) + לפי טכנאי (לשכר) + ייצוא
-- Push Notifications (FCM) - דורש Service Worker + Cloud Function + טיפול בטוקנים
+- Google Forms/Sheets integration - משיכת פניות מגוגל
+- דוחות: זמן טיפול, שעות לפי טכנאי/בית ספר, פילוח קטגוריות
+- Push Notifications (FCM)
 - גיבוי אוטומטי יומי
-- ניהול קטגוריות דינמי
-- היסטוריית שינויים בקריאה (audit log)
 
 ### שלב 5 - Nice to Have
 - Dark mode
 - ייצוא דוחות ל-Excel/PDF
 - Dashboard עם גרפים
 - SLA - התראה על חריגה מזמן טיפול
-- צירוף תמונות לקריאה
-- הערות קוליות
+- צירוף תמונות לפנייה
