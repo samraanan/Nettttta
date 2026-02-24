@@ -3,6 +3,7 @@
 ## הוראות כלליות
 
 בנה לי אפליקציה לניהול 5 טכנאי IT מאפס.
+האפליקציה תומכת בריבוי בתי ספר (Multi-Tenant) - כל בית ספר מנוהל בנפרד עם הנתונים שלו. המשתמש משויך לבית ספר ספציפי, וכל הנתונים מסוננים לפי `schoolId`.
 
 ### Stack טכנולוגי
 - **React 19** + **Vite 5** + **React Router DOM 7**
@@ -291,13 +292,28 @@ src/
 
 ### אימות (Authentication)
 - Firebase Auth עם Email/Password
-- בעת הרשמה - שמור את ה-role ב-Firestore (collection: `users`)
+- בעת הרשמה - שמור את ה-role + `schoolId` ב-Firestore (collection: `users`)
 - Guard על כל route - אם לא מחובר → redirect ל-`/login`
 - אם מחובר אבל ניגש ל-route לא שלו → redirect ל-dashboard שלו
+- **כל משתמש משויך לבית ספר אחד** - `schoolId` נטען ב-login ומשמש לסינון כל הנתונים
 
 ---
 
 ## מודל נתונים (Firestore Collections)
+
+### `schools`
+```javascript
+{
+  id: "school_1",
+  name: "בית ספר אופק",
+  address: "רחוב הרצל 15, תל אביב",
+  phone: "03-1234567",
+  contactName: "דוד כהן",             // איש קשר
+  contactEmail: "david@ofek-school.co.il",
+  active: true,
+  createdAt: timestamp
+}
+```
 
 ### `users`
 ```javascript
@@ -306,7 +322,9 @@ src/
   email: "user@example.com",
   displayName: "ישראל ישראלי",
   role: "admin" | "technician" | "client",
-  technicianId: "tech_1",  // רק לטכנאים
+  schoolId: "school_1",             // שיוך לבית ספר - חובה
+  schoolName: "בית ספר אופק",       // denormalized לתצוגה מהירה
+  technicianId: "tech_1",           // רק לטכנאים
   phone: "050-1234567",
   active: true,
   createdAt: timestamp
@@ -320,6 +338,7 @@ src/
   name: "יוסי כהן",
   phone: "050-1234567",
   email: "yossi@company.com",
+  schoolId: "school_1",             // שיוך לבית ספר
   specialties: ["network", "hardware", "software"],
   active: true,
   currentLoad: 3  // מספר קריאות פתוחות כרגע
@@ -330,6 +349,7 @@ src/
 ```javascript
 {
   id: "call_20260224_001",
+  schoolId: "school_1",             // שיוך לבית ספר - חובה
   title: "מחשב לא נדלק",
   description: "המחשב בעמדה 5 לא מגיב ללחיצה על כפתור ההפעלה",
   category: "hardware" | "software" | "network" | "security" | "printer" | "other",
@@ -392,7 +412,8 @@ src/
 }
 ```
 
-### `categories`
+### `categories` (doc: `schools/{schoolId}/meta/categories`)
+הקטגוריות מנוהלות **ברמת בית ספר** - כל בית ספר יכול להתאים את הקטגוריות שלו.
 ```javascript
 {
   list: [
@@ -406,7 +427,7 @@ src/
 }
 ```
 
-### `locations` (doc: `meta/locations`)
+### `locations` (doc: `schools/{schoolId}/meta/locations`)
 מבנה היררכי של מיקומים בבית הספר - משפך חכם: קומה → סוג חדר → חדר ספציפי.
 ```javascript
 {
@@ -618,7 +639,10 @@ Modal שמציג את 5 הטכנאים עם: שם, התמחויות, מספר ק
 
 ## Storage Service - דפוס real-time subscriptions
 
-בנה את `src/services/storage.js` בדפוס הבא - כל קריאה מחזירה unsubscribe function לניקוי, כל עדכון קריטי דרך Firestore transaction:
+בנה את `src/services/storage.js` בדפוס הבא - כל קריאה מחזירה unsubscribe function לניקוי, כל עדכון קריטי דרך Firestore transaction.
+
+**חשוב: כל query חייב לסנן לפי `schoolId`** - המשתמש רואה רק נתונים של בית הספר שלו.
+ה-`schoolId` מגיע מהמשתמש המחובר (`currentUser.schoolId`).
 
 ```javascript
 import { db } from './firebase';
@@ -632,10 +656,11 @@ export const storageService = {
 
     // ========== קריאות שירות ==========
 
-    // real-time subscription לכל הקריאות (למנהל)
-    subscribeToAllCalls(callback) {
+    // real-time subscription לכל הקריאות של בית הספר (למנהל)
+    subscribeToAllCalls(schoolId, callback) {
         const q = query(
             collection(db, 'service_calls'),
+            where('schoolId', '==', schoolId),
             orderBy('createdAt', 'desc')
         );
         return onSnapshot(q, (snapshot) => {
@@ -644,10 +669,11 @@ export const storageService = {
         });
     },
 
-    // real-time subscription לקריאות של טכנאי ספציפי
-    subscribeToCallsByTechnician(techId, callback) {
+    // real-time subscription לקריאות של טכנאי ספציפי (בבית ספר ספציפי)
+    subscribeToCallsByTechnician(schoolId, techId, callback) {
         const q = query(
             collection(db, 'service_calls'),
+            where('schoolId', '==', schoolId),
             where('assignedTo', '==', techId),
             orderBy('createdAt', 'desc')
         );
@@ -657,10 +683,11 @@ export const storageService = {
         });
     },
 
-    // real-time subscription לקריאות של לקוח
-    subscribeToCallsByClient(clientId, callback) {
+    // real-time subscription לקריאות של לקוח (בבית ספר ספציפי)
+    subscribeToCallsByClient(schoolId, clientId, callback) {
         const q = query(
             collection(db, 'service_calls'),
+            where('schoolId', '==', schoolId),
             where('clientId', '==', clientId),
             orderBy('createdAt', 'desc')
         );
@@ -670,10 +697,11 @@ export const storageService = {
         });
     },
 
-    // יצירת קריאת שירות חדשה
-    async createServiceCall(callData) {
+    // יצירת קריאת שירות חדשה (schoolId חובה)
+    async createServiceCall(schoolId, callData) {
         return await addDoc(collection(db, 'service_calls'), {
             ...callData,
+            schoolId,
             status: 'new',
             assignedTo: null,
             assignedTechName: null,
@@ -762,17 +790,36 @@ export const storageService = {
 
     // ========== טכנאים ==========
 
-    subscribeToTechnicians(callback) {
-        return onSnapshot(collection(db, 'technicians'), (snapshot) => {
+    // טכנאים מסוננים לפי בית ספר
+    subscribeToTechnicians(schoolId, callback) {
+        const q = query(
+            collection(db, 'technicians'),
+            where('schoolId', '==', schoolId)
+        );
+        return onSnapshot(q, (snapshot) => {
             const techs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             callback(techs);
         });
     },
 
-    // ========== קטגוריות ==========
+    // ========== בתי ספר ==========
 
-    subscribeToCategories(callback) {
-        const docRef = doc(db, 'meta', 'categories');
+    // טעינת פרטי בית ספר
+    subscribeToSchool(schoolId, callback) {
+        const docRef = doc(db, 'schools', schoolId);
+        return onSnapshot(docRef, (docSnap) => {
+            if (docSnap.exists()) {
+                callback({ id: docSnap.id, ...docSnap.data() });
+            } else {
+                callback(null);
+            }
+        });
+    },
+
+    // ========== קטגוריות (ברמת בית ספר) ==========
+
+    subscribeToCategories(schoolId, callback) {
+        const docRef = doc(db, 'schools', schoolId, 'meta', 'categories');
         return onSnapshot(docRef, (docSnap) => {
             if (docSnap.exists() && docSnap.data().list) {
                 callback(docSnap.data().list);
@@ -789,16 +836,16 @@ export const storageService = {
         });
     },
 
-    async updateCategories(list) {
-        const docRef = doc(db, 'meta', 'categories');
+    async updateCategories(schoolId, list) {
+        const docRef = doc(db, 'schools', schoolId, 'meta', 'categories');
         await setDoc(docRef, { list }, { merge: true });
     },
 
-    // ========== מיקומים ==========
+    // ========== מיקומים (ברמת בית ספר) ==========
 
-    // real-time subscription למבנה המיקומים
-    subscribeToLocations(callback) {
-        const docRef = doc(db, 'meta', 'locations');
+    // real-time subscription למבנה המיקומים של בית הספר
+    subscribeToLocations(schoolId, callback) {
+        const docRef = doc(db, 'schools', schoolId, 'meta', 'locations');
         return onSnapshot(docRef, (docSnap) => {
             if (docSnap.exists() && docSnap.data().floors) {
                 callback(docSnap.data());
@@ -809,8 +856,8 @@ export const storageService = {
         });
     },
 
-    async updateLocations(locationsData) {
-        const docRef = doc(db, 'meta', 'locations');
+    async updateLocations(schoolId, locationsData) {
+        const docRef = doc(db, 'schools', schoolId, 'meta', 'locations');
         await setDoc(docRef, locationsData, { merge: true });
     }
 };
@@ -820,7 +867,8 @@ export const storageService = {
 
 ## Auth Service
 
-בנה את `src/services/authService.js`:
+בנה את `src/services/authService.js`.
+**חשוב:** בעת התחברות והרשמה, ה-`schoolId` נטען ונשמר כחלק מנתוני המשתמש. כל פעולה באפליקציה משתמשת ב-`currentUser.schoolId` כדי לסנן נתונים.
 
 ```javascript
 import { auth, db } from './firebase';
@@ -833,21 +881,24 @@ import {
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 
 export const authService = {
-    // התחברות
+    // התחברות - מחזיר user עם schoolId
     async login(email, password) {
         const result = await signInWithEmailAndPassword(auth, email, password);
         const userDoc = await getDoc(doc(db, 'users', result.user.uid));
         return { uid: result.user.uid, ...userDoc.data() };
+        // userData כולל: role, schoolId, schoolName, displayName, phone...
     },
 
-    // הרשמה
-    async register(email, password, displayName, role, phone) {
+    // הרשמה - schoolId חובה
+    async register(email, password, displayName, role, phone, schoolId, schoolName) {
         const result = await createUserWithEmailAndPassword(auth, email, password);
         const userData = {
             uid: result.user.uid,
             email,
             displayName,
             role,
+            schoolId,           // שיוך לבית ספר
+            schoolName,         // denormalized לתצוגה
             phone,
             active: true,
             createdAt: serverTimestamp()
@@ -861,12 +912,13 @@ export const authService = {
         await signOut(auth);
     },
 
-    // מעקב אחרי מצב אימות
+    // מעקב אחרי מצב אימות - מחזיר user מלא כולל schoolId
     onAuthChange(callback) {
         return onAuthStateChanged(auth, async (firebaseUser) => {
             if (firebaseUser) {
                 const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
                 callback({ uid: firebaseUser.uid, ...userDoc.data() });
+                // callback מקבל: { uid, email, displayName, role, schoolId, schoolName, phone, ... }
             } else {
                 callback(null);
             }
@@ -901,18 +953,20 @@ export const authService = {
 
 ## דגשים חשובים
 
-1. **Mobile First** - טכנאים עובדים מהטלפון, העיצוב חייב להיות מותאם מובייל קודם
-2. **Real-time** - כל העדכונים ב-real-time דרך Firestore `onSnapshot` subscriptions. כל subscribe מחזיר unsubscribe function שצריך לקרוא ב-useEffect cleanup
-3. **Transactions** - שימוש ב-Firestore `runTransaction` לעדכון עומס טכנאים (`currentLoad`) ולשינויי סטטוס שמשפיעים על מספר documents
-4. **5 טכנאים בלבד** - האפליקציה מותאמת ל-5 טכנאים, לא צריך pagination מורכב
-5. **SPA** - Single Page Application, אין צורך ב-SSR
-6. **ProtectedRoute** - כל route עטוף ב-guard שבודק auth + role
-7. **Unsubscribe pattern** - כל useEffect שעושה subscribe חייב לעשות cleanup:
+1. **Multi-Tenant** - כל הנתונים מסוננים לפי `schoolId` של המשתמש המחובר. אין אפשרות לראות נתונים של בית ספר אחר. ה-`schoolId` מגיע מ-`currentUser.schoolId` שנטען ב-login.
+2. **Mobile First** - טכנאים עובדים מהטלפון, העיצוב חייב להיות מותאם מובייל קודם
+3. **Real-time** - כל העדכונים ב-real-time דרך Firestore `onSnapshot` subscriptions. כל subscribe מחזיר unsubscribe function שצריך לקרוא ב-useEffect cleanup
+4. **Transactions** - שימוש ב-Firestore `runTransaction` לעדכון עומס טכנאים (`currentLoad`) ולשינויי סטטוס שמשפיעים על מספר documents
+5. **5 טכנאים בלבד** - האפליקציה מותאמת ל-5 טכנאים לכל בית ספר, לא צריך pagination מורכב
+6. **SPA** - Single Page Application, אין צורך ב-SSR
+7. **ProtectedRoute** - כל route עטוף ב-guard שבודק auth + role
+8. **Unsubscribe pattern** - כל useEffect שעושה subscribe חייב לעשות cleanup, ולכלול את `schoolId` ב-dependencies:
 ```jsx
 useEffect(() => {
-    const unsubscribe = storageService.subscribeToAllCalls(setCalls);
+    if (!currentUser?.schoolId) return;
+    const unsubscribe = storageService.subscribeToAllCalls(currentUser.schoolId, setCalls);
     return () => unsubscribe();
-}, []);
+}, [currentUser?.schoolId]);
 ```
 
 ---
