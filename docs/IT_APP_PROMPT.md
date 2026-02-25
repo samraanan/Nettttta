@@ -286,8 +286,8 @@ src/
 ### תפקידים (Roles)
 1. **מנהל טכנאים (tech_manager)** - הבעלים של צוות הטכנאים. רואה פניות של **כל** בתי הספר ביחד או לחוד. מנהל מלאי, דוחות, הגדרות בתי ספר. **גם טכנאי בעצמו** - קונסולת מנהל = קונסולת טכנאי + יכולות ניהול.
 2. **טכנאי (technician)** - רואה את **כל** הפניות מכל בתי הספר. כל פנייה יכולה להיות מטופלת ע"י כל טכנאי. **אין שיבוץ** - מי שנוגע בפנייה מתועד כאחרון שטיפל. מנהל שעות כניסה/יציאה לבתי ספר.
-3. **מנהל בית ספר (school_admin)** - רואה נתונים ודוחות של **בית הספר שלו בלבד**. יכול לרדת לרזולוציות ולקרוא פניות ספציפיות. לא מטפל בפניות.
-4. **לקוח (client)** - צוות בית הספר. פותח פנייה חדשה ועוקב אחרי הסטטוס שלה. **לא מגדיר דחיפות**.
+3. **מנהל בית ספר (school_admin)** - רואה נתונים ודוחות של **בית הספר שלו בלבד**. יכול לרדת לרזולוציות ולקרוא פניות ספציפיות. **יכול לקבוע דחיפות** לפניות בית הספר שלו. לא מטפל בפניות (לא משנה סטטוס, לא מוסיף הערות).
+4. **לקוח (client)** - צוות בית הספר. פותח פנייה חדשה ועוקב אחרי הסטטוס שלה. **לא מגדיר דחיפות** (ניתן להפעלה עתידית).
 
 ### Routes
 ```
@@ -378,7 +378,7 @@ src/
   description: "המחשב בעמדה 5 לא מגיב ללחיצה על כפתור ההפעלה",
   category: "hardware" | "software" | "network" | "security" | "printer" | "other",
 
-  // דחיפות - נקבעת ע"י טכנאי/מנהל טכנאים (לא הלקוח!)
+  // דחיפות - נקבעת ע"י טכנאי/מנהל טכנאים/מנהל בית ספר (לא הלקוח!)
   priority: "low" | "medium" | "high" | "urgent" | null,  // null = טרם נקבעה
 
   // סטטוס: התקבל → בטיפול → ממתין → הושלם → סגור
@@ -397,9 +397,10 @@ src/
     categoryId: "classrooms",
     categoryLabel: "כיתות",
     roomId: "room_a1",
-    roomLabel: "כיתה א'1"
+    roomNumber: "101",        // מספר חדר פיזי - קבוע לאורך שנים, לא משתנה
+    roomLabel: "כיתה א'1"    // שם כיתה נוכחי - משתנה כל שנה לפי שיבוץ
   },
-  locationDisplay: "קומת קרקע > כיתות > כיתה א'1",
+  locationDisplay: "קומת קרקע > כיתות > כיתה א'1 (חדר 101)",
 
   // אחרון שטיפל (לא שיבוץ - כל טכנאי יכול לטפל)
   lastHandledBy: "tech_1" | null,
@@ -433,7 +434,7 @@ src/
   history: [
     {
       id: "hist_1",
-      action: "created",              // created | status_changed | priority_set | note_added | equipment_supplied | message_sent | closed
+      action: "created",              // created | status_changed | priority_set | category_changed | note_added | equipment_supplied | message_sent | closed
       description: "פנייה נפתחה",
       performedBy: "user-uid",
       performedByName: "שרה לוי",
@@ -511,6 +512,16 @@ src/
 
 ### `locations` (doc: `schools/{schoolId}/meta/locations`)
 מבנה היררכי של מיקומים בבית הספר - משפך חכם: קומה → סוג חדר → חדר ספציפי.
+
+**חשוב - מספר חדר פיזי (`roomNumber`):**
+סימול הכיתות והמשרדים משתנה כל שנה (למשל: חדר 101 הוא השנה "כיתה א'1" ובשנה הבאה "כיתה ב'2").
+לכן כל חדר מכיל:
+- `roomNumber` - מספר חדר פיזי קבוע (לא משתנה לעולם)
+- `label` - שם הכיתה/משרד הנוכחי (מתעדכן כל שנה)
+
+לטכנאי/מורה/מנהל מוצג שם הכיתה הנוכחי (`label`).
+כשהטכנאי מחפש היסטוריה של חדר, החיפוש מתבצע לפי `roomNumber` כדי שההיסטוריה תהיה אחידה לאורך שנים.
+
 ```javascript
 {
   floors: [
@@ -522,40 +533,40 @@ src/
           id: "classrooms",
           label: "כיתות",
           rooms: [
-            { id: "room_a1", label: "כיתה א'1" },
-            { id: "room_a2", label: "כיתה א'2" },
-            { id: "room_b1", label: "כיתה ב'1" },
-            { id: "room_b2", label: "כיתה ב'2" },
-            { id: "room_c1", label: "כיתה ג'1" },
-            { id: "room_c2", label: "כיתה ג'2" }
+            { id: "room_a1", roomNumber: "001", label: "כיתה א'1" },
+            { id: "room_a2", roomNumber: "002", label: "כיתה א'2" },
+            { id: "room_b1", roomNumber: "003", label: "כיתה ב'1" },
+            { id: "room_b2", roomNumber: "004", label: "כיתה ב'2" },
+            { id: "room_c1", roomNumber: "005", label: "כיתה ג'1" },
+            { id: "room_c2", roomNumber: "006", label: "כיתה ג'2" }
           ]
         },
         {
           id: "labs",
           label: "מעבדות",
           rooms: [
-            { id: "lab_computers", label: "מעבדת מחשבים" },
-            { id: "lab_science", label: "מעבדת מדעים" }
+            { id: "lab_computers", roomNumber: "007", label: "מעבדת מחשבים" },
+            { id: "lab_science", roomNumber: "008", label: "מעבדת מדעים" }
           ]
         },
         {
           id: "offices",
           label: "משרדים",
           rooms: [
-            { id: "office_principal", label: "משרד מנהל" },
-            { id: "office_vp", label: "משרד סגן מנהל" },
-            { id: "teachers_lounge", label: "חדר מורים" },
-            { id: "office_secretary", label: "מזכירות" }
+            { id: "office_principal", roomNumber: "009", label: "משרד מנהל" },
+            { id: "office_vp", roomNumber: "010", label: "משרד סגן מנהל" },
+            { id: "teachers_lounge", roomNumber: "011", label: "חדר מורים" },
+            { id: "office_secretary", roomNumber: "012", label: "מזכירות" }
           ]
         },
         {
           id: "common",
           label: "חללים משותפים",
           rooms: [
-            { id: "library", label: "ספרייה" },
-            { id: "cafeteria", label: "חדר אוכל" },
-            { id: "gym", label: "אולם ספורט" },
-            { id: "auditorium", label: "אולם כנסים" }
+            { id: "library", roomNumber: "013", label: "ספרייה" },
+            { id: "cafeteria", roomNumber: "014", label: "חדר אוכל" },
+            { id: "gym", roomNumber: "015", label: "אולם ספורט" },
+            { id: "auditorium", roomNumber: "016", label: "אולם כנסים" }
           ]
         }
       ]
@@ -568,37 +579,37 @@ src/
           id: "classrooms",
           label: "כיתות",
           rooms: [
-            { id: "room_d1", label: "כיתה ד'1" },
-            { id: "room_d2", label: "כיתה ד'2" },
-            { id: "room_e1", label: "כיתה ה'1" },
-            { id: "room_e2", label: "כיתה ה'2" },
-            { id: "room_f1", label: "כיתה ו'1" },
-            { id: "room_f2", label: "כיתה ו'2" }
+            { id: "room_d1", roomNumber: "101", label: "כיתה ד'1" },
+            { id: "room_d2", roomNumber: "102", label: "כיתה ד'2" },
+            { id: "room_e1", roomNumber: "103", label: "כיתה ה'1" },
+            { id: "room_e2", roomNumber: "104", label: "כיתה ה'2" },
+            { id: "room_f1", roomNumber: "105", label: "כיתה ו'1" },
+            { id: "room_f2", roomNumber: "106", label: "כיתה ו'2" }
           ]
         },
         {
           id: "labs",
           label: "מעבדות",
           rooms: [
-            { id: "lab_robotics", label: "מעבדת רובוטיקה" },
-            { id: "lab_art", label: "חדר אמנות" }
+            { id: "lab_robotics", roomNumber: "107", label: "מעבדת רובוטיקה" },
+            { id: "lab_art", roomNumber: "108", label: "חדר אמנות" }
           ]
         },
         {
           id: "offices",
           label: "משרדים",
           rooms: [
-            { id: "office_counselor", label: "משרד יועצת" },
-            { id: "meeting_room", label: "חדר ישיבות" },
-            { id: "office_special_ed", label: "משרד חינוך מיוחד" }
+            { id: "office_counselor", roomNumber: "109", label: "משרד יועצת" },
+            { id: "meeting_room", roomNumber: "110", label: "חדר ישיבות" },
+            { id: "office_special_ed", roomNumber: "111", label: "משרד חינוך מיוחד" }
           ]
         },
         {
           id: "infra",
           label: "תשתיות",
           rooms: [
-            { id: "server_room", label: "חדר שרתים" },
-            { id: "network_closet", label: "ארון תקשורת" }
+            { id: "server_room", roomNumber: "112", label: "חדר שרתים" },
+            { id: "network_closet", roomNumber: "113", label: "ארון תקשורת" }
           ]
         }
       ]
@@ -607,7 +618,7 @@ src/
 }
 ```
 
-**חשוב:** נתונים אלה הם נתוני דמו (mock data). מבנה המיקומים ניתן לעריכה עתידית דרך ממשק הניהול.
+**חשוב:** נתונים אלה הם נתוני דמו (mock data). מבנה המיקומים ניתן לעריכה עתידית דרך ממשק הניהול. מספרי החדרים (`roomNumber`) הם קבועים ולא משתנים - רק ה-`label` מתעדכן כל שנה.
 
 ---
 
@@ -638,8 +649,17 @@ Modal שמאפשר לטכנאי להזין הודעה חופשית ולשלוח 
 ```
 - כל dropdown נעול עד שהקודם נבחר
 - שינוי בחירה מוקדמת מאפס את השלבים הבאים
-- מתחת: טקסט סיכום "קומת קרקע > כיתות > כיתה א'1"
+- ברשימת החדרים מוצגים: שם הכיתה הנוכחי + מספר חדר בסוגריים, למשל: "כיתה א'1 (חדר 001)"
+- מתחת: טקסט סיכום "קומת קרקע > כיתות > כיתה א'1 (חדר 001)"
 - הנתונים נטענים מ-`schools/{schoolId}/meta/locations`
+- **חשוב:** בעת שמירת הפנייה, נשמר גם `roomNumber` (מספר פיזי קבוע) לצורך חיפוש היסטוריית חדר
+
+### RoomHistory - היסטוריית פניות לפי חדר
+כשטכנאי לוחץ על מספר חדר בכרטיס פנייה, נפתח מסך היסטוריה שמציג את **כל** הפניות שנפתחו לאותו חדר (לפי `roomNumber`).
+- החיפוש מבוסס על `roomNumber` (מספר פיזי קבוע) ולא על שם הכיתה (`roomLabel`)
+- כך גם אם שם הכיתה השתנה בין שנים, כל ההיסטוריה של החדר הפיזי נשמרת רציפה
+- מציג: רשימת פניות ממוינות לפי תאריך, עם סטטוס, קטגוריה ותיאור
+- בראש המסך מוצג: מספר החדר + שם הכיתה הנוכחי
 
 ### InventoryManager - ניהול מלאי (מנהל טכנאים)
 טבלה של פריטי ציוד עם: שם, קטגוריה, כמות במלאי, סף מינימום. התראה ויזואלית על פריטים מתחת לסף.
@@ -658,7 +678,7 @@ Modal שמאפשר לטכנאי להזין הודעה חופשית ולשלוח 
 - רשימת הפניות שלו עם סטטוס מעודכן בזמן אמת
 - הודעות מהטכנאי (מייל/ווצאפ/נוטיפיקציה)
 
-**לא ממלא:** דחיפות (נקבעת ע"י טכנאי/מנהל)
+**לא ממלא:** דחיפות (נקבעת ע"י טכנאי/מנהל טכנאים/מנהל בית ספר). ניתן להפעלה עתידית ללקוח
 
 ### טכנאי (technician) - מטפל בפניות:
 **רואה:** את **כל** הפניות מכל בתי הספר (לא רק "שלו")
@@ -666,10 +686,12 @@ Modal שמאפשר לטכנאי להזין הודעה חופשית ולשלוח 
 **רושם:**
 - **שינוי סטטוס** - התקבל → בטיפול → ממתין → הושלם → סגור
 - **קביעת דחיפות** - נמוכה / בינונית / גבוהה / קריטית
+- **תיקון קטגוריה** - שינוי הקטגוריה שהלקוח בחר (למשל: לקוח בחר "אחר" אבל זו בעיית רשת)
 - **הערות טיפול** - תיעוד מה נעשה (טקסט חופשי)
 - **ציוד שסופק** - בחירה מרשימת מלאי קשיחה + כמות
 - **הודעה ללקוח** - טקסט חופשי שנשלח במייל/ווצאפ/נוטיפיקציה
 - **כניסה/יציאה לבית ספר** - שעון נוכחות ברמת ביקור
+- **היסטוריית חדר** - צפייה בכל הפניות של חדר לפי מספר חדר פיזי (קבוע לאורך שנים)
 - **סגירת פנייה** - טכנאי יכול לסגור פנייה
 
 **מקבל:**
@@ -683,8 +705,11 @@ Modal שמאפשר לטכנאי להזין הודעה חופשית ולשלוח 
 - **ניהול מלאי** - הוספה/הסרה/עדכון כמויות של פריטי ציוד
 - **הגדרות בתי ספר חדשים** - הגדרת מיקומים, קטגוריות, אינטגרציית Google
 
-### מנהל בית ספר (school_admin) - צפייה ודוחות:
+### מנהל בית ספר (school_admin) - צפייה, דוחות וקביעת דחיפות:
 **רואה:** רק את בית הספר שלו
+
+**עושה:**
+- **קביעת דחיפות** - נמוכה / בינונית / גבוהה / קריטית (לפניות בית הספר שלו)
 
 **מקבל:**
 - סיכום פניות (פתוחות, בטיפול, ממתינות, סגורות)
@@ -789,6 +814,20 @@ export const storageService = {
         });
     },
 
+    // היסטוריית פניות לפי חדר (מספר פיזי קבוע - אחיד לאורך שנים)
+    subscribeToCallsByRoom(schoolId, roomNumber, callback) {
+        const q = query(
+            collection(db, 'service_calls'),
+            where('schoolId', '==', schoolId),
+            where('location.roomNumber', '==', roomNumber),
+            orderBy('createdAt', 'desc')
+        );
+        return onSnapshot(q, (snapshot) => {
+            const calls = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            callback(calls);
+        });
+    },
+
     // יצירת פנייה חדשה (לקוח)
     async createServiceCall(callData) {
         const historyEntry = {
@@ -855,8 +894,8 @@ export const storageService = {
         });
     },
 
-    // קביעת/שינוי דחיפות
-    async updateCallPriority(callId, priority, techId, techName) {
+    // קביעת/שינוי דחיפות (טכנאי/מנהל טכנאים/מנהל בית ספר)
+    async updateCallPriority(callId, priority, performerId, performerName) {
         const callRef = doc(db, 'service_calls', callId);
 
         await runTransaction(db, async (transaction) => {
@@ -878,6 +917,38 @@ export const storageService = {
 
             transaction.update(callRef, {
                 priority,
+                lastHandledBy: techId,
+                lastHandledByName: techName,
+                lastHandledAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+                history
+            });
+        });
+    },
+
+    // תיקון קטגוריה (טכנאי מתקן את הקטגוריה שהלקוח בחר)
+    async updateCallCategory(callId, newCategory, techId, techName) {
+        const callRef = doc(db, 'service_calls', callId);
+
+        await runTransaction(db, async (transaction) => {
+            const callDoc = await transaction.get(callRef);
+            if (!callDoc.exists()) throw new Error("פנייה לא נמצאה");
+
+            const callData = callDoc.data();
+            const history = callData.history || [];
+            history.push({
+                id: `hist_${Date.now()}`,
+                action: 'category_changed',
+                description: `קטגוריה שונתה: ${callData.category} → ${newCategory}`,
+                performedBy: techId,
+                performedByName: techName,
+                oldValue: callData.category,
+                newValue: newCategory,
+                timestamp: new Date().toISOString()
+            });
+
+            transaction.update(callRef, {
+                category: newCategory,
                 lastHandledBy: techId,
                 lastHandledByName: techName,
                 lastHandledAt: serverTimestamp(),
@@ -1190,55 +1261,54 @@ useEffect(() => {
 
 ---
 
-## תכנון פיתוח - 5 שלבים
+## תכנון פיתוח - אסטרטגיית "החלף והרחב"
+
+> **אסטרטגיה:** להקים מערכת שתחליף את Google Forms הקיימת באחד מבתי הספר,
+> ומשם להרחיב לפיצ'רים נוספים ולקוחות נוספים.
 
 ### שלב 0 - תשתית
 - Setup פרויקט, Firebase config, מבנה תיקיות, routing בסיסי
 - הגדרת 4 roles ב-ProtectedRoute
+- נתוני demo למיקומים וקטגוריות של בית ספר אחד
 
-### שלב 1 - דמו ויזואלי
-> מטרה: מסכים יפים עם mock data
+### שלב 1 - MVP: החלפת Google Forms (בית ספר אחד)
+> מטרה: מערכת עובדת שמחליפה את Google Forms לבית ספר אחד
 
-- דף התחברות
-- Dashboard טכנאי/מנהל - רשימת פניות מכל בתי הספר עם badges צבעוניים
-- כרטיס פנייה עם סטטוס + דחיפות + בית ספר + מיקום
-- כפתורי שינוי סטטוס (התקבל → בטיפול → ממתין → הושלם → סגור)
-- **הכל עם mock data קשיח**
-
-### שלב 2 - MVP עובד
-> מטרה: מערכת שאפשר להתחיל לעבוד איתה מחר
-
-- חיבור Firebase אמיתי (Auth + Firestore)
-- Login/Logout + ProtectedRoute לפי role
-- לקוח: פתיחת פנייה (קטגוריה + תיאור + מיקום)
-- טכנאי: צפייה בכל הפניות + שינוי סטטוס + קביעת דחיפות + הערות
-- מנהל טכנאים: כמו טכנאי + סינון לפי בית ספר
-- מנהל בית ספר: צפייה בפניות בית הספר שלו
-- Real-time updates
-- כניסה/יציאה לבית ספר (שעון נוכחות)
+- דף התחברות (Login)
+- לקוח: פתיחת פנייה (קטגוריה + תיאור + מיקום עם מספר חדר)
+- לקוח: מעקב אחרי הפניות שלו + סטטוס בזמן אמת
+- טכנאי: צפייה בכל הפניות + שינוי סטטוס + הערות
+- טכנאי: קביעת דחיפות + תיקון קטגוריה
+- טכנאי: כניסה/יציאה לבית ספר
+- מנהל בית ספר: צפייה בפניות + קביעת דחיפות
 - היסטוריה (audit log) בכל פנייה
+- Real-time updates
+- Mobile First (טכנאים בשטח)
+- **בדיקה עם בית ספר אמיתי אחד**
 
-### שלב 3 - Quick Wins
-> מטרה: פיצ'רים שמשדרגים משמעותית
+### שלב 2 - חיזוק ושיפור
+> מטרה: פיצ'רים שחסרים ביחס ל-Google Forms + שיפורים
 
-- שליחת הודעה ללקוח (מייל/ווצאפ/נוטיפיקציה)
-- ציוד שסופק מרשימת מלאי + ניהול מלאי
-- סינון פניות לפי סטטוס/דחיפות/קטגוריה/בית ספר
+- מנהל טכנאים: dashboard כולל + סינון לפי בית ספר
+- סינון פניות (סטטוס/דחיפות/קטגוריה)
 - חיפוש חופשי בפניות
+- היסטוריית חדר (חיפוש לפי מספר חדר פיזי)
+- שליחת הודעה ללקוח (מייל/ווצאפ)
+- PWA - התקנה כאפליקציה בטלפון
+
+### שלב 3 - הרחבה ללקוחות נוספים
+> מטרה: הכנסת בתי ספר נוספים
+
 - הגדרות בית ספר חדש (מיקומים, קטגוריות)
-- PWA בסיסי - התקנה כאפליקציה
+- ניהול מלאי ציוד
+- ציוד שסופק מרשימת מלאי
+- דוחות: זמן טיפול, פילוח קטגוריות, שעות עבודה
+- Google Sheets integration (ייבוא פניות ישנות)
 
-### שלב 4 - השקעה גדולה יותר
-> מטרה: פיצ'רים חשובים לטווח ארוך
-
-- Google Forms/Sheets integration - משיכת פניות מגוגל
-- דוחות: זמן טיפול, שעות לפי טכנאי/בית ספר, פילוח קטגוריות
+### שלב 4 - Nice to Have
 - Push Notifications (FCM)
-- גיבוי אוטומטי יומי
-
-### שלב 5 - Nice to Have
-- Dark mode
 - ייצוא דוחות ל-Excel/PDF
 - Dashboard עם גרפים
 - SLA - התראה על חריגה מזמן טיפול
 - צירוף תמונות לפנייה
+- Dark mode
