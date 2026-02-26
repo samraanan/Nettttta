@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
     Menu, X, LogOut, Home, List, BarChart3,
-    Package, Settings, Clock, Building2, Wrench
+    Package, Settings, Clock, Building2, Wrench, MapPin
 } from 'lucide-react';
 import { ROLES, ROLE_LABELS } from '../../lib/constants';
 import { authService } from '../../services/authService';
@@ -12,13 +12,15 @@ const NAV_ITEMS = {
     [ROLES.TECH_MANAGER]: [
         { to: '/manager', icon: Home, label: 'ראשי', end: true },
         { to: '/manager/calls', icon: List, label: 'כל הפניות' },
+        { to: '/manager/room-history', icon: MapPin, label: 'היסטוריית חדר' },
         { to: '/manager/reports', icon: BarChart3, label: 'דוחות' },
         { to: '/manager/inventory', icon: Package, label: 'מלאי ציוד' },
-        { to: '/manager/schools', icon: Settings, label: 'הגדרות בתי ספר' },
+        { to: '/manager/schools', icon: Settings, label: 'בתי ספר' },
     ],
     [ROLES.TECHNICIAN]: [
         { to: '/technician', icon: Home, label: 'ראשי', end: true },
         { to: '/technician/calls', icon: List, label: 'פניות' },
+        { to: '/technician/room-history', icon: MapPin, label: 'היסטוריית חדר' },
         { to: '/technician/clock', icon: Clock, label: 'כניסה/יציאה' },
     ],
     [ROLES.SCHOOL_ADMIN]: [

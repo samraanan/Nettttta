@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowRight, MapPin, Clock, Building2, User, Phone, Mail, Send, MessageSquare } from 'lucide-react';
+import { ArrowRight, MapPin, Clock, Building2, User, Phone, Mail, Send, MessageSquare, Package } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { storageService } from '../../services/storage';
@@ -9,6 +9,7 @@ import { PriorityBadge } from '../shared/PriorityBadge';
 import { CategoryIcon, getCategoryLabel } from '../shared/CategoryIcon';
 import { StatusControl } from './StatusControl';
 import { SendMessageModal } from './SendMessageModal';
+import { EquipmentSupplyModal } from './EquipmentSupplyModal';
 import { PRIORITY, PRIORITY_LABELS, PRIORITY_COLORS, DEFAULT_CATEGORIES } from '../../lib/constants';
 
 export function CallDetailView({ user, canEditStatus = true, canEditPriority = true, canAddNotes = true }) {
@@ -18,6 +19,7 @@ export function CallDetailView({ user, canEditStatus = true, canEditPriority = t
     const [noteText, setNoteText] = useState('');
     const [loading, setLoading] = useState(false);
     const [showMessage, setShowMessage] = useState(false);
+    const [showEquipment, setShowEquipment] = useState(false);
 
     useEffect(() => {
         if (!callId) return;
@@ -247,17 +249,30 @@ export function CallDetailView({ user, canEditStatus = true, canEditPriority = t
             </div>
 
             {/* Supplied Equipment */}
-            {call.suppliedEquipment && call.suppliedEquipment.length > 0 && (
+            {canEditStatus && (
                 <div className="bg-card rounded-2xl border p-4 space-y-3">
-                    <h3 className="text-sm font-semibold">ציוד שסופק</h3>
-                    <div className="space-y-1.5">
-                        {call.suppliedEquipment.map((eq, idx) => (
-                            <div key={idx} className="flex justify-between text-sm bg-muted/50 rounded-lg px-3 py-2">
-                                <span>{eq.itemName} x{eq.quantity}</span>
-                                <span className="text-xs text-muted-foreground">{eq.techName} - {formatTime(eq.timestamp)}</span>
-                            </div>
-                        ))}
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-semibold">ציוד שסופק</h3>
+                        <button
+                            onClick={() => setShowEquipment(true)}
+                            className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition"
+                        >
+                            <Package className="w-3 h-3" />
+                            ספק ציוד
+                        </button>
                     </div>
+                    {call.suppliedEquipment && call.suppliedEquipment.length > 0 ? (
+                        <div className="space-y-1.5">
+                            {call.suppliedEquipment.map((eq, idx) => (
+                                <div key={idx} className="flex justify-between text-sm bg-muted/50 rounded-lg px-3 py-2">
+                                    <span>{eq.itemName} x{eq.quantity}</span>
+                                    <span className="text-xs text-muted-foreground">{eq.techName} - {formatTime(eq.timestamp)}</span>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-xs text-muted-foreground">לא סופק ציוד עדיין</p>
+                    )}
                 </div>
             )}
 
@@ -287,6 +302,15 @@ export function CallDetailView({ user, canEditStatus = true, canEditPriority = t
                     call={call}
                     user={user}
                     onClose={() => setShowMessage(false)}
+                />
+            )}
+
+            {/* Equipment Supply Modal */}
+            {showEquipment && (
+                <EquipmentSupplyModal
+                    call={call}
+                    user={user}
+                    onClose={() => setShowEquipment(false)}
                 />
             )}
         </div>
