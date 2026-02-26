@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Search, MapPin, FileText } from 'lucide-react';
 import { storageService } from '../../services/storage';
 import { ServiceCallCard } from '../technician/ServiceCallCard';
@@ -10,21 +10,29 @@ export function RoomHistoryView({ user, linkPrefix = '/technician/call' }) {
     const [searched, setSearched] = useState(false);
     const [schools, setSchools] = useState([]);
     const [loadingSchools, setLoadingSchools] = useState(true);
+    const searchUnsubRef = useRef(null);
 
-    useState(() => {
+    useEffect(() => {
         const unsub = storageService.subscribeToAllSchools((s) => {
             setSchools(s);
             setLoadingSchools(false);
         });
         return () => unsub();
-    });
+    }, []);
+
+    // Cleanup search subscription on unmount
+    useEffect(() => {
+        return () => {
+            if (searchUnsubRef.current) searchUnsubRef.current();
+        };
+    }, []);
 
     const handleSearch = () => {
         if (!roomNumber.trim() || !schoolId) return;
+        // Unsubscribe from previous search
+        if (searchUnsubRef.current) searchUnsubRef.current();
         setSearched(true);
-        const unsub = storageService.subscribeToCallsByRoom(schoolId, roomNumber.trim(), setCalls);
-        // cleanup will be handled on next search or unmount
-        return unsub;
+        searchUnsubRef.current = storageService.subscribeToCallsByRoom(schoolId, roomNumber.trim(), setCalls);
     };
 
     return (

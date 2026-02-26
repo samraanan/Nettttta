@@ -23,15 +23,11 @@ export function EquipmentSupplyModal({ call, user, onClose }) {
 
         setLoading(true);
         try {
-            // Add to call
+            // addSuppliedEquipment already deducts inventory inside a transaction
             await storageService.addSuppliedEquipment(
                 call.id, selectedItem, selected.name, quantity,
                 user.uid, user.displayName
             );
-            // Update inventory
-            await storageService.updateInventoryItem(selectedItem, {
-                inStock: selected.inStock - quantity
-            });
             setSuccess(true);
             setTimeout(() => {
                 setSuccess(false);
