@@ -5,13 +5,27 @@ import { ROLES, ROLE_HOME } from './lib/constants';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { AppLayout } from './components/layout/AppLayout';
 import { LoginPage } from './pages/LoginPage';
-import { PlaceholderPage } from './pages/PlaceholderPage';
 
-// Dashboards
+// Tech Manager
 import { ManagerDashboard } from './components/tech-manager/ManagerDashboard';
+import { ReportsView } from './components/tech-manager/ReportsView';
+import { InventoryManager } from './components/tech-manager/InventoryManager';
+import { SchoolSettings } from './components/tech-manager/SchoolSettings';
+
+// Technician
 import { TechDashboard } from './components/technician/TechDashboard';
+import { AllCallsList } from './components/technician/AllCallsList';
+import { CallDetailView } from './components/technician/CallDetailView';
+import { ClockInOut } from './components/technician/ClockInOut';
+
+// School Admin
 import { SchoolDashboard } from './components/school-admin/SchoolDashboard';
-import { ClientDashboard } from './components/client/ClientDashboard';
+import { SchoolCallsView } from './components/school-admin/SchoolCallsView';
+import { SchoolReports } from './components/school-admin/SchoolReports';
+
+// Client
+import { NewCallForm } from './components/client/NewCallForm';
+import { MyCallsView } from './components/client/MyCallsView';
 
 export default function App() {
     const [user, setUser] = useState(null);
@@ -25,6 +39,12 @@ export default function App() {
         return () => unsubscribe();
     }, []);
 
+    const protect = (component, allowedRoles) => (
+        <ProtectedRoute user={user} loading={loading} allowedRoles={allowedRoles}>
+            <AppLayout user={user}>{component}</AppLayout>
+        </ProtectedRoute>
+    );
+
     return (
         <BrowserRouter>
             <Routes>
@@ -36,94 +56,30 @@ export default function App() {
                 } />
 
                 {/* מנהל טכנאים */}
-                <Route path="/manager" element={
-                    <ProtectedRoute user={user} loading={loading} allowedRoles={[ROLES.TECH_MANAGER]}>
-                        <AppLayout user={user}><ManagerDashboard user={user} /></AppLayout>
-                    </ProtectedRoute>
-                } />
-                <Route path="/manager/calls" element={
-                    <ProtectedRoute user={user} loading={loading} allowedRoles={[ROLES.TECH_MANAGER]}>
-                        <AppLayout user={user}><PlaceholderPage title="כל הפניות" description="צפייה וסינון בכל הפניות מכל בתי הספר" /></AppLayout>
-                    </ProtectedRoute>
-                } />
-                <Route path="/manager/calls/:callId" element={
-                    <ProtectedRoute user={user} loading={loading} allowedRoles={[ROLES.TECH_MANAGER]}>
-                        <AppLayout user={user}><PlaceholderPage title="פרטי פנייה" description="פרטי פנייה + היסטוריה" /></AppLayout>
-                    </ProtectedRoute>
-                } />
-                <Route path="/manager/reports" element={
-                    <ProtectedRoute user={user} loading={loading} allowedRoles={[ROLES.TECH_MANAGER]}>
-                        <AppLayout user={user}><PlaceholderPage title="דוחות" description="סטטיסטיקות ודוחות חוצי בתי ספר" /></AppLayout>
-                    </ProtectedRoute>
-                } />
-                <Route path="/manager/inventory" element={
-                    <ProtectedRoute user={user} loading={loading} allowedRoles={[ROLES.TECH_MANAGER]}>
-                        <AppLayout user={user}><PlaceholderPage title="מלאי ציוד" description="ניהול מלאי ציוד" /></AppLayout>
-                    </ProtectedRoute>
-                } />
-                <Route path="/manager/schools" element={
-                    <ProtectedRoute user={user} loading={loading} allowedRoles={[ROLES.TECH_MANAGER]}>
-                        <AppLayout user={user}><PlaceholderPage title="הגדרות בתי ספר" description="ניהול בתי ספר, מיקומים וקטגוריות" /></AppLayout>
-                    </ProtectedRoute>
-                } />
-                <Route path="/manager/schools/:schoolId" element={
-                    <ProtectedRoute user={user} loading={loading} allowedRoles={[ROLES.TECH_MANAGER]}>
-                        <AppLayout user={user}><PlaceholderPage title="הגדרות בית ספר" description="מיקומים, קטגוריות והגדרות" /></AppLayout>
-                    </ProtectedRoute>
-                } />
+                <Route path="/manager" element={protect(<ManagerDashboard user={user} />, [ROLES.TECH_MANAGER])} />
+                <Route path="/manager/calls" element={protect(<AllCallsList user={user} linkPrefix="/manager/calls" />, [ROLES.TECH_MANAGER])} />
+                <Route path="/manager/calls/:callId" element={protect(<CallDetailView user={user} canEditStatus canEditPriority canAddNotes />, [ROLES.TECH_MANAGER])} />
+                <Route path="/manager/reports" element={protect(<ReportsView user={user} />, [ROLES.TECH_MANAGER])} />
+                <Route path="/manager/inventory" element={protect(<InventoryManager user={user} />, [ROLES.TECH_MANAGER])} />
+                <Route path="/manager/schools" element={protect(<SchoolSettings user={user} />, [ROLES.TECH_MANAGER])} />
 
                 {/* טכנאי */}
-                <Route path="/technician" element={
-                    <ProtectedRoute user={user} loading={loading} allowedRoles={[ROLES.TECHNICIAN]}>
-                        <AppLayout user={user}><TechDashboard user={user} /></AppLayout>
-                    </ProtectedRoute>
-                } />
-                <Route path="/technician/calls" element={
-                    <ProtectedRoute user={user} loading={loading} allowedRoles={[ROLES.TECHNICIAN]}>
-                        <AppLayout user={user}><PlaceholderPage title="פניות" description="כל הפניות מכל בתי הספר" /></AppLayout>
-                    </ProtectedRoute>
-                } />
-                <Route path="/technician/call/:callId" element={
-                    <ProtectedRoute user={user} loading={loading} allowedRoles={[ROLES.TECHNICIAN]}>
-                        <AppLayout user={user}><PlaceholderPage title="פרטי פנייה" description="פרטי פנייה + היסטוריה" /></AppLayout>
-                    </ProtectedRoute>
-                } />
-                <Route path="/technician/clock" element={
-                    <ProtectedRoute user={user} loading={loading} allowedRoles={[ROLES.TECHNICIAN]}>
-                        <AppLayout user={user}><PlaceholderPage title="כניסה/יציאה" description="מעקב שעות בבתי הספר" /></AppLayout>
-                    </ProtectedRoute>
-                } />
+                <Route path="/technician" element={protect(<TechDashboard user={user} />, [ROLES.TECHNICIAN])} />
+                <Route path="/technician/calls" element={protect(<AllCallsList user={user} linkPrefix="/technician/call" />, [ROLES.TECHNICIAN])} />
+                <Route path="/technician/call/:callId" element={protect(<CallDetailView user={user} canEditStatus canEditPriority canAddNotes />, [ROLES.TECHNICIAN])} />
+                <Route path="/technician/clock" element={protect(<ClockInOut user={user} />, [ROLES.TECHNICIAN])} />
 
                 {/* מנהל בית ספר */}
-                <Route path="/school" element={
-                    <ProtectedRoute user={user} loading={loading} allowedRoles={[ROLES.SCHOOL_ADMIN]}>
-                        <AppLayout user={user}><SchoolDashboard user={user} /></AppLayout>
-                    </ProtectedRoute>
-                } />
-                <Route path="/school/calls" element={
-                    <ProtectedRoute user={user} loading={loading} allowedRoles={[ROLES.SCHOOL_ADMIN]}>
-                        <AppLayout user={user}><PlaceholderPage title="פניות בית הספר" description="צפייה בפניות בית הספר" /></AppLayout>
-                    </ProtectedRoute>
-                } />
-                <Route path="/school/reports" element={
-                    <ProtectedRoute user={user} loading={loading} allowedRoles={[ROLES.SCHOOL_ADMIN]}>
-                        <AppLayout user={user}><PlaceholderPage title="דוחות" description="דוחות ברמת בית ספר" /></AppLayout>
-                    </ProtectedRoute>
-                } />
+                <Route path="/school" element={protect(<SchoolDashboard user={user} />, [ROLES.SCHOOL_ADMIN])} />
+                <Route path="/school/calls" element={protect(<SchoolCallsView user={user} />, [ROLES.SCHOOL_ADMIN])} />
+                <Route path="/school/call/:callId" element={protect(<CallDetailView user={user} canEditStatus={false} canEditPriority canAddNotes={false} />, [ROLES.SCHOOL_ADMIN])} />
+                <Route path="/school/reports" element={protect(<SchoolReports user={user} />, [ROLES.SCHOOL_ADMIN])} />
 
                 {/* לקוח */}
-                <Route path="/client" element={
-                    <ProtectedRoute user={user} loading={loading} allowedRoles={[ROLES.CLIENT]}>
-                        <AppLayout user={user}><ClientDashboard user={user} /></AppLayout>
-                    </ProtectedRoute>
-                } />
-                <Route path="/client/my-calls" element={
-                    <ProtectedRoute user={user} loading={loading} allowedRoles={[ROLES.CLIENT]}>
-                        <AppLayout user={user}><PlaceholderPage title="הפניות שלי" description="מעקב אחרי הפניות שלי" /></AppLayout>
-                    </ProtectedRoute>
-                } />
+                <Route path="/client" element={protect(<NewCallForm user={user} />, [ROLES.CLIENT])} />
+                <Route path="/client/my-calls" element={protect(<MyCallsView user={user} />, [ROLES.CLIENT])} />
 
-                {/* Default redirect */}
+                {/* Default */}
                 <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
         </BrowserRouter>
