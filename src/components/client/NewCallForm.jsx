@@ -21,6 +21,12 @@ export function NewCallForm({ user }) {
         return () => { unsub1(); unsub2(); };
     }, [user.schoolId]);
 
+    useEffect(() => {
+        if (!success) return;
+        const t = setTimeout(() => setSuccess(false), 3000);
+        return () => clearTimeout(t);
+    }, [success]);
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!category || !description.trim() || !location) return;
@@ -43,7 +49,6 @@ export function NewCallForm({ user }) {
             setCategory('');
             setDescription('');
             setLocation(null);
-            setTimeout(() => setSuccess(false), 3000);
         } catch (err) {
             console.error('Error creating call:', err);
         } finally {

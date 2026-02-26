@@ -17,7 +17,10 @@ export function CallDetailView({ user, canEditStatus = true, canEditPriority = t
     const navigate = useNavigate();
     const [call, setCall] = useState(null);
     const [noteText, setNoteText] = useState('');
-    const [loading, setLoading] = useState(false);
+    const [statusLoading, setStatusLoading] = useState(false);
+    const [priorityLoading, setPriorityLoading] = useState(false);
+    const [categoryLoading, setCategoryLoading] = useState(false);
+    const [noteLoading, setNoteLoading] = useState(false);
     const [showMessage, setShowMessage] = useState(false);
     const [showEquipment, setShowEquipment] = useState(false);
 
@@ -40,48 +43,48 @@ export function CallDetailView({ user, canEditStatus = true, canEditPriority = t
     };
 
     const handleStatusChange = async (newStatus) => {
-        setLoading(true);
+        setStatusLoading(true);
         try {
             await storageService.updateCallStatus(callId, newStatus, user.uid, user.displayName);
         } catch (err) {
             console.error('Error updating status:', err);
         } finally {
-            setLoading(false);
+            setStatusLoading(false);
         }
     };
 
     const handlePriorityChange = async (priority) => {
-        setLoading(true);
+        setPriorityLoading(true);
         try {
             await storageService.updateCallPriority(callId, priority, user.uid, user.displayName);
         } catch (err) {
             console.error('Error updating priority:', err);
         } finally {
-            setLoading(false);
+            setPriorityLoading(false);
         }
     };
 
     const handleCategoryChange = async (newCategory) => {
-        setLoading(true);
+        setCategoryLoading(true);
         try {
             await storageService.updateCallCategory(callId, newCategory, user.uid, user.displayName);
         } catch (err) {
             console.error('Error updating category:', err);
         } finally {
-            setLoading(false);
+            setCategoryLoading(false);
         }
     };
 
     const handleAddNote = async () => {
         if (!noteText.trim()) return;
-        setLoading(true);
+        setNoteLoading(true);
         try {
             await storageService.addNote(callId, noteText.trim(), user.uid, user.displayName);
             setNoteText('');
         } catch (err) {
             console.error('Error adding note:', err);
         } finally {
-            setLoading(false);
+            setNoteLoading(false);
         }
     };
 
@@ -146,7 +149,7 @@ export function CallDetailView({ user, canEditStatus = true, canEditPriority = t
             {/* Status Control */}
             {canEditStatus && (
                 <div className="bg-card rounded-2xl border p-4">
-                    <StatusControl currentStatus={call.status} onStatusChange={handleStatusChange} loading={loading} />
+                    <StatusControl currentStatus={call.status} onStatusChange={handleStatusChange} loading={statusLoading} />
                 </div>
             )}
 
@@ -159,12 +162,12 @@ export function CallDetailView({ user, canEditStatus = true, canEditPriority = t
                             <button
                                 key={value}
                                 onClick={() => handlePriorityChange(value)}
-                                disabled={loading || call.priority === value}
+                                disabled={priorityLoading || call.priority === value}
                                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
                                     call.priority === value
                                         ? `${PRIORITY_COLORS[value]} ring-2 ring-offset-1 ring-current`
                                         : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                                } ${loading ? 'opacity-50' : ''}`}
+                                } ${priorityLoading ? 'opacity-50' : ''}`}
                             >
                                 {PRIORITY_LABELS[value]}
                             </button>
@@ -182,12 +185,12 @@ export function CallDetailView({ user, canEditStatus = true, canEditPriority = t
                             <button
                                 key={cat.value}
                                 onClick={() => handleCategoryChange(cat.value)}
-                                disabled={loading || call.category === cat.value}
+                                disabled={categoryLoading || call.category === cat.value}
                                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition inline-flex items-center gap-1 ${
                                     call.category === cat.value
                                         ? 'bg-primary/10 text-primary ring-2 ring-offset-1 ring-primary/30'
                                         : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                                } ${loading ? 'opacity-50' : ''}`}
+                                } ${categoryLoading ? 'opacity-50' : ''}`}
                             >
                                 <CategoryIcon category={cat.value} className="w-3 h-3" />
                                 {cat.label}
@@ -239,7 +242,7 @@ export function CallDetailView({ user, canEditStatus = true, canEditPriority = t
                         />
                         <button
                             onClick={handleAddNote}
-                            disabled={loading || !noteText.trim()}
+                            disabled={noteLoading || !noteText.trim()}
                             className="px-3 py-2 bg-primary text-primary-foreground rounded-xl text-sm hover:bg-primary/90 transition disabled:opacity-50"
                         >
                             <Send className="w-4 h-4" />

@@ -7,7 +7,19 @@ import {
 import { DEFAULT_CATEGORIES } from '../lib/constants';
 import { DEMO_LOCATIONS } from '../lib/demoData';
 
+const uid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+
 export const storageService = {
+
+    // ========== משתמשים ==========
+
+    subscribeToAllUsers(callback) {
+        const q = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
+        return onSnapshot(q, (snapshot) => {
+            const users = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            callback(users);
+        });
+    },
 
     // ========== פניות ==========
 
@@ -72,7 +84,7 @@ export const storageService = {
 
     async createServiceCall(callData) {
         const historyEntry = {
-            id: `hist_${Date.now()}`,
+            id: `hist_${uid()}`,
             action: 'created',
             description: 'פנייה נפתחה',
             performedBy: callData.clientId,
@@ -118,7 +130,7 @@ export const storageService = {
 
             const history = [...(callData.history || [])];
             history.push({
-                id: `hist_${Date.now()}`,
+                id: `hist_${uid()}`,
                 action: 'status_changed',
                 description: `סטטוס שונה ל: ${newStatus}`,
                 performedBy: techId,
@@ -143,7 +155,7 @@ export const storageService = {
             const callData = callDoc.data();
             const history = [...(callData.history || [])];
             history.push({
-                id: `hist_${Date.now()}`,
+                id: `hist_${uid()}`,
                 action: 'priority_set',
                 description: `דחיפות נקבעה: ${priority}`,
                 performedBy: performerId,
@@ -171,7 +183,7 @@ export const storageService = {
             const callData = callDoc.data();
             const history = [...(callData.history || [])];
             history.push({
-                id: `hist_${Date.now()}`,
+                id: `hist_${uid()}`,
                 action: 'category_changed',
                 description: `קטגוריה שונתה: ${callData.category} → ${newCategory}`,
                 performedBy: techId,
@@ -204,7 +216,7 @@ export const storageService = {
             const history = [...(callData.history || [])];
 
             notes.push({
-                id: `note_${Date.now()}`,
+                id: `note_${uid()}`,
                 techId,
                 techName,
                 text: noteText,
@@ -212,7 +224,7 @@ export const storageService = {
             });
 
             history.push({
-                id: `hist_${Date.now()}`,
+                id: `hist_${uid()}`,
                 action: 'note_added',
                 description: `הערה נוספה: "${noteText.length > 50 ? noteText.substring(0, 50) + '...' : noteText}"`,
                 performedBy: techId,
@@ -256,7 +268,7 @@ export const storageService = {
             });
 
             history.push({
-                id: `hist_${Date.now()}`,
+                id: `hist_${uid()}`,
                 action: 'equipment_supplied',
                 description: `סופק: ${itemName} x${quantity}`,
                 performedBy: techId,

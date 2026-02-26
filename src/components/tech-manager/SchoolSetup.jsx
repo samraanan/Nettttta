@@ -15,6 +15,12 @@ export function SchoolSetup() {
     const [activeSection, setActiveSection] = useState('locations');
 
     useEffect(() => {
+        if (!saved) return;
+        const t = setTimeout(() => setSaved(false), 2000);
+        return () => clearTimeout(t);
+    }, [saved]);
+
+    useEffect(() => {
         if (!schoolId) return;
         const unsub1 = storageService.subscribeToSchool(schoolId, setSchool);
         const unsub2 = storageService.subscribeToCategories(schoolId, (cats) => {
@@ -143,7 +149,6 @@ export function SchoolSetup() {
             await storageService.updateLocations(schoolId, locations);
             await storageService.updateCategories(schoolId, categories);
             setSaved(true);
-            setTimeout(() => setSaved(false), 2000);
         } catch (err) {
             console.error('Error saving:', err);
         } finally {

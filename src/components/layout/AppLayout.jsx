@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
     Menu, X, LogOut, Home, List, BarChart3,
-    Package, Settings, Clock, Building2, Wrench, MapPin
+    Package, Settings, Clock, Building2, Wrench, MapPin, Users
 } from 'lucide-react';
 import { ROLES, ROLE_LABELS } from '../../lib/constants';
 import { authService } from '../../services/authService';
@@ -16,6 +16,7 @@ const NAV_ITEMS = {
         { to: '/manager/reports', icon: BarChart3, label: 'דוחות' },
         { to: '/manager/inventory', icon: Package, label: 'מלאי ציוד' },
         { to: '/manager/schools', icon: Settings, label: 'בתי ספר' },
+        { to: '/manager/users', icon: Users, label: 'משתמשים' },
     ],
     [ROLES.TECHNICIAN]: [
         { to: '/technician', icon: Home, label: 'ראשי', end: true },

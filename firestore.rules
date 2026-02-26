@@ -1,0 +1,96 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // Reads the caller's user document (cached per request by Firestore)
+    function me() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function role() {
+      return me().role;
+    }
+
+    function isTechManager()  { return isAuth() && role() == 'tech_manager';  }
+    function isTechnician()   { return isAuth() && role() == 'technician';     }
+    function isSchoolAdmin()  { return isAuth() && role() == 'school_admin';   }
+    function isClient()       { return isAuth() && role() == 'client';         }
+    function isTechTeam()     { return isTechManager() || isTechnician();      }
+
+    // ── users ─────────────────────────────────────────────────────────────────
+    // Structure: { uid, email, displayName, role, phone, schoolId, schoolName, active }
+
+    match /users/{userId} {
+      // Every authenticated user can read their own profile; managers see all
+      allow read:   if isAuth() && (request.auth.uid == userId || isTechManager());
+      // A user writes only their own doc (registration flow)
+      allow create: if isAuth() && (request.auth.uid == userId || isTechManager());
+      allow update: if isAuth() && (request.auth.uid == userId || isTechManager());
+      allow delete: if isTechManager();
+    }
+
+    // ── schools ───────────────────────────────────────────────────────────────
+
+    match /schools/{schoolId} {
+      allow read:  if isTechTeam()
+                   || (isSchoolAdmin() && me().schoolId == schoolId)
+                   || (isClient()      && me().schoolId == schoolId);
+      allow write: if isTechManager();
+
+      // Subcollection: meta/categories  &  meta/locations
+      match /meta/{docId} {
+        allow read:  if isTechTeam()
+                     || (isSchoolAdmin() && me().schoolId == schoolId)
+                     || (isClient()      && me().schoolId == schoolId);
+        allow write: if isTechManager();
+      }
+    }
+
+    // ── service_calls ─────────────────────────────────────────────────────────
+
+    match /service_calls/{callId} {
+      // Tech team sees all; school-admin sees their school; client sees own calls
+      allow read: if isTechTeam()
+                  || (isSchoolAdmin() && resource.data.schoolId == me().schoolId)
+                  || (isClient()      && resource.data.clientId == request.auth.uid);
+
+      // Client creates calls only for their own school and with their uid
+      allow create: if isTechTeam()
+                    || (isClient()
+                        && request.resource.data.schoolId == me().schoolId
+                        && request.resource.data.clientId == request.auth.uid);
+
+      // Tech team + school-admin can update (school-admin updates priority only, enforced by UI)
+      allow update: if isTechTeam()
+                    || (isSchoolAdmin() && resource.data.schoolId == me().schoolId);
+
+      allow delete: if isTechManager();
+    }
+
+    // ── inventory_items ───────────────────────────────────────────────────────
+
+    match /inventory_items/{itemId} {
+      allow read:   if isTechTeam();
+      // Technician can update (supply deduction); manager can add/delete
+      allow create: if isTechManager();
+      allow update: if isTechTeam();
+      allow delete: if isTechManager();
+    }
+
+    // ── work_sessions ─────────────────────────────────────────────────────────
+
+    match /work_sessions/{sessionId} {
+      allow read:   if isTechManager()
+                    || (isTechnician() && resource.data.techId == request.auth.uid);
+      allow create: if isTechnician() && request.resource.data.techId == request.auth.uid;
+      allow update: if isTechnician() && resource.data.techId == request.auth.uid;
+      allow delete: if isTechManager();
+    }
+  }
+}

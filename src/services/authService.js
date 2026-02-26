@@ -1,9 +1,11 @@
-import { auth, db } from './firebase';
+import { auth, db, firebaseConfig } from './firebase';
+import { initializeApp, deleteApp } from 'firebase/app';
 import {
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
     signOut,
-    onAuthStateChanged
+    onAuthStateChanged,
+    getAuth
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 
@@ -32,6 +34,37 @@ export const authService = {
         };
         await setDoc(doc(db, 'users', result.user.uid), userData);
         return userData;
+    },
+
+    async adminCreateUser({ email, password, displayName, role, phone, schoolId, schoolName }) {
+        const appName = `SecondaryApp_${Date.now()}`;
+        const secondaryApp = initializeApp(firebaseConfig, appName);
+        const secondaryAuth = getAuth(secondaryApp);
+
+        try {
+            const result = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+            const userData = {
+                uid: result.user.uid,
+                email,
+                displayName,
+                role,
+                phone: phone || null,
+                schoolId: schoolId || null,
+                schoolName: schoolName || null,
+                active: true,
+                createdAt: serverTimestamp()
+            };
+
+            // Write to Firestore using the primary app (manager's auth context)
+            await setDoc(doc(db, 'users', result.user.uid), userData);
+
+            // Sign out the secondary app just in case
+            await signOut(secondaryAuth);
+
+            return userData;
+        } finally {
+            await deleteApp(secondaryApp);
+        }
     },
 
     async logout() {

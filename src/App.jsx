@@ -12,6 +12,7 @@ import { ReportsView } from './components/tech-manager/ReportsView';
 import { InventoryManager } from './components/tech-manager/InventoryManager';
 import { SchoolSettings } from './components/tech-manager/SchoolSettings';
 import { SchoolSetup } from './components/tech-manager/SchoolSetup';
+import { UserManager } from './components/tech-manager/UserManager';
 
 // Technician
 import { TechDashboard } from './components/technician/TechDashboard';
@@ -68,6 +69,7 @@ export default function App() {
                 <Route path="/manager/schools" element={protect(<SchoolSettings user={user} />, [ROLES.TECH_MANAGER])} />
                 <Route path="/manager/schools/:schoolId" element={protect(<SchoolSetup user={user} />, [ROLES.TECH_MANAGER])} />
                 <Route path="/manager/room-history" element={protect(<RoomHistoryView user={user} linkPrefix="/manager/calls" />, [ROLES.TECH_MANAGER])} />
+                <Route path="/manager/users" element={protect(<UserManager user={user} />, [ROLES.TECH_MANAGER])} />
 
                 {/* טכנאי */}
                 <Route path="/technician" element={protect(<TechDashboard user={user} />, [ROLES.TECHNICIAN])} />

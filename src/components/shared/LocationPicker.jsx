@@ -16,6 +16,9 @@ export function LocationPicker({ locations, value, onChange }) {
 
     useEffect(() => {
         if (room && floor && category) {
+            // Guard: only call onChange when the selection actually changed,
+            // preventing an infinite loop if the parent doesn't memoize onChange.
+            if (value?.roomId === room.id) return;
             onChange({
                 floorId: floor.id,
                 floorLabel: floor.label,
@@ -26,7 +29,7 @@ export function LocationPicker({ locations, value, onChange }) {
                 roomLabel: room.label
             });
         }
-    }, [selectedRoom, onChange, room, floor, category]);
+    }, [selectedRoom, onChange, room, floor, category, value]);
 
     const handleFloorChange = (e) => {
         setSelectedFloor(e.target.value);
