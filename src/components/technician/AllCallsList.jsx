@@ -4,7 +4,7 @@ import { storageService } from '../../services/storage';
 import { ServiceCallCard } from './ServiceCallCard';
 import { STATUS, STATUS_LABELS, PRIORITY, PRIORITY_LABELS, DEFAULT_CATEGORIES } from '../../lib/constants';
 
-export function AllCallsList({ user, linkPrefix = '/technician/call' }) {
+export function AllCallsList({ linkPrefix = '/technician/call' }) {
     const [calls, setCalls] = useState([]);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('');

@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowRight, Building2, MapPin, Save, Plus, Trash2, ChevronDown, ChevronUp, Tag } from 'lucide-react';
+import { ArrowRight, Building2, MapPin, Save, Plus, Trash2, Tag } from 'lucide-react';
 import { storageService } from '../../services/storage';
 import { DEFAULT_CATEGORIES } from '../../lib/constants';
 
-export function SchoolSetup({ user }) {
+export function SchoolSetup() {
     const { schoolId } = useParams();
     const navigate = useNavigate();
     const [school, setSchool] = useState(null);

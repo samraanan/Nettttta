@@ -26,7 +26,7 @@ export function LocationPicker({ locations, value, onChange }) {
                 roomLabel: room.label
             });
         }
-    }, [selectedRoom]);
+    }, [selectedRoom, onChange, room, floor, category]);
 
     const handleFloorChange = (e) => {
         setSelectedFloor(e.target.value);

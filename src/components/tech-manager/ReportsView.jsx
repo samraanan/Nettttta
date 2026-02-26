@@ -3,7 +3,7 @@ import { storageService } from '../../services/storage';
 import { STATUS_LABELS, DEFAULT_CATEGORIES } from '../../lib/constants';
 import { getCategoryLabel } from '../shared/CategoryIcon';
 
-export function ReportsView({ user }) {
+export function ReportsView() {
     const [calls, setCalls] = useState([]);
     const [schools, setSchools] = useState([]);
     const [workSessions, setWorkSessions] = useState([]);

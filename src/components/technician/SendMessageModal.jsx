@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Send, MessageSquare, Mail, Phone } from 'lucide-react';
 import { storageService } from '../../services/storage';
 
@@ -7,6 +7,12 @@ export function SendMessageModal({ call, user, onClose }) {
     const [channel, setChannel] = useState('whatsapp');
     const [loading, setLoading] = useState(false);
     const [sent, setSent] = useState(false);
+
+    useEffect(() => {
+        if (!sent) return;
+        const timer = setTimeout(() => onClose(), 1500);
+        return () => clearTimeout(timer);
+    }, [sent, onClose]);
 
     const handleSend = async () => {
         if (!message.trim()) return;
@@ -33,7 +39,6 @@ export function SendMessageModal({ call, user, onClose }) {
             }
 
             setSent(true);
-            setTimeout(() => onClose(), 1500);
         } catch (err) {
             console.error('Error sending message:', err);
         } finally {

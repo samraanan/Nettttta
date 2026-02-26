@@ -116,7 +116,7 @@ export const storageService = {
             if (newStatus === 'resolved') updates.resolvedAt = serverTimestamp();
             if (newStatus === 'closed') updates.closedAt = serverTimestamp();
 
-            const history = callData.history || [];
+            const history = [...(callData.history || [])];
             history.push({
                 id: `hist_${Date.now()}`,
                 action: 'status_changed',
@@ -141,7 +141,7 @@ export const storageService = {
             if (!callDoc.exists()) throw new Error("פנייה לא נמצאה");
 
             const callData = callDoc.data();
-            const history = callData.history || [];
+            const history = [...(callData.history || [])];
             history.push({
                 id: `hist_${Date.now()}`,
                 action: 'priority_set',
@@ -169,7 +169,7 @@ export const storageService = {
             if (!callDoc.exists()) throw new Error("פנייה לא נמצאה");
 
             const callData = callDoc.data();
-            const history = callData.history || [];
+            const history = [...(callData.history || [])];
             history.push({
                 id: `hist_${Date.now()}`,
                 action: 'category_changed',
@@ -200,8 +200,8 @@ export const storageService = {
             if (!callDoc.exists()) throw new Error("פנייה לא נמצאה");
 
             const callData = callDoc.data();
-            const notes = callData.notes || [];
-            const history = callData.history || [];
+            const notes = [...(callData.notes || [])];
+            const history = [...(callData.history || [])];
 
             notes.push({
                 id: `note_${Date.now()}`,
@@ -214,7 +214,7 @@ export const storageService = {
             history.push({
                 id: `hist_${Date.now()}`,
                 action: 'note_added',
-                description: `הערה נוספה: "${noteText.substring(0, 50)}..."`,
+                description: `הערה נוספה: "${noteText.length > 50 ? noteText.substring(0, 50) + '...' : noteText}"`,
                 performedBy: techId,
                 performedByName: techName,
                 timestamp: new Date().toISOString()
@@ -247,8 +247,8 @@ export const storageService = {
                 inStock: Math.max(0, (invData.inStock || 0) - quantity)
             });
 
-            const suppliedEquipment = callData.suppliedEquipment || [];
-            const history = callData.history || [];
+            const suppliedEquipment = [...(callData.suppliedEquipment || [])];
+            const history = [...(callData.history || [])];
 
             suppliedEquipment.push({
                 itemId, itemName, quantity, techId, techName,

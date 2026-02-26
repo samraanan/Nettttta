@@ -3,7 +3,7 @@ import { Plus, AlertTriangle, Package } from 'lucide-react';
 import { storageService } from '../../services/storage';
 import { INVENTORY_CATEGORIES } from '../../lib/constants';
 
-export function InventoryManager({ user }) {
+export function InventoryManager() {
     const [items, setItems] = useState([]);
     const [showAdd, setShowAdd] = useState(false);
     const [newItem, setNewItem] = useState({ name: '', category: 'other', inStock: 0, minStock: 0 });
@@ -34,8 +34,9 @@ export function InventoryManager({ user }) {
     };
 
     const handleUpdateStock = async (itemId, newStock) => {
+        const stock = Math.max(0, parseInt(newStock, 10) || 0);
         try {
-            await storageService.updateInventoryItem(itemId, { inStock: Number(newStock) });
+            await storageService.updateInventoryItem(itemId, { inStock: stock });
         } catch (err) {
             console.error('Error updating stock:', err);
         }
@@ -159,8 +160,9 @@ export function InventoryManager({ user }) {
                                         <td className="px-4 py-3 text-center">
                                             <input
                                                 type="number"
-                                                value={item.inStock}
-                                                onChange={(e) => handleUpdateStock(item.id, e.target.value)}
+                                                defaultValue={item.inStock}
+                                                key={item.id + '-' + item.inStock}
+                                                onBlur={(e) => handleUpdateStock(item.id, e.target.value)}
                                                 min="0"
                                                 className={`w-16 text-center px-2 py-1 rounded-lg border text-sm ${
                                                     item.inStock <= item.minStock ? 'bg-red-50 border-red-200 text-red-700' : ''

@@ -10,6 +10,16 @@ export function EquipmentSupplyModal({ call, user, onClose }) {
     const [success, setSuccess] = useState(false);
 
     useEffect(() => {
+        if (!success) return;
+        const timer = setTimeout(() => {
+            setSuccess(false);
+            setSelectedItem('');
+            setQuantity(1);
+        }, 1500);
+        return () => clearTimeout(timer);
+    }, [success]);
+
+    useEffect(() => {
         const unsub = storageService.subscribeToInventory(setItems);
         return () => unsub();
     }, []);
@@ -29,11 +39,6 @@ export function EquipmentSupplyModal({ call, user, onClose }) {
                 user.uid, user.displayName
             );
             setSuccess(true);
-            setTimeout(() => {
-                setSuccess(false);
-                setSelectedItem('');
-                setQuantity(1);
-            }, 1500);
         } catch (err) {
             console.error('Error supplying equipment:', err);
         } finally {

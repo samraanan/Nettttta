@@ -3,7 +3,7 @@ import { Building2, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { storageService } from '../../services/storage';
 
-export function SchoolSettings({ user }) {
+export function SchoolSettings() {
     const [schools, setSchools] = useState([]);
 
     useEffect(() => {
