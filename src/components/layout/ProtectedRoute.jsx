@@ -1,7 +1,7 @@
 import { Navigate } from 'react-router-dom';
-import { ROLE_HOME } from '../../lib/constants';
+import { ROLE_HOME, CAN_VIEW_AS } from '../../lib/constants';
 
-export function ProtectedRoute({ user, loading, allowedRoles, children }) {
+export function ProtectedRoute({ user, loading, routeOwnerRole, children }) {
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-background">
@@ -13,13 +13,12 @@ export function ProtectedRoute({ user, loading, allowedRoles, children }) {
         );
     }
 
-    // לא מחובר → redirect ל-login
     if (!user) {
         return <Navigate to="/login" replace />;
     }
 
-    // מחובר אבל ניגש ל-route לא שלו → redirect ל-dashboard שלו
-    if (allowedRoles && !allowedRoles.includes(user.role)) {
+    // בדוק האם התפקיד של המשתמש מורשה לגשת לתצוגה זו
+    if (routeOwnerRole && !CAN_VIEW_AS[user.role]?.includes(routeOwnerRole)) {
         const home = ROLE_HOME[user.role] || '/login';
         return <Navigate to={home} replace />;
     }

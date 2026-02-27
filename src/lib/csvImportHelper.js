@@ -42,7 +42,7 @@ export function parseCSVRow(row, schoolId, schoolName, schools) {
     const priority = PRIORITY_MAP_HEB[rawPriority] || rawPriority || null;
 
     // Client
-    const clientName = pick('לקוח', 'clientName', 'Client', 'client');
+    const clientName = pick('פונה', 'לקוח', 'clientName', 'Client', 'client');
     const clientPhone = pick('טלפון', 'phone', 'Phone');
 
     // Location
@@ -73,16 +73,6 @@ export function parseCSVRow(row, schoolId, schoolName, schools) {
         }
     }
 
-    // Build notes array
-    const notes = notesStr
-        ? [{ id: `note_import_${Date.now()}`, techId: 'csv_import', techName: handledBy || 'ייבוא', text: notesStr, timestamp: new Date().toISOString() }]
-        : [];
-
-    // Build supplied equipment array
-    const suppliedEquipment = equipmentStr
-        ? [{ itemId: 'import', itemName: equipmentStr, quantity: 1, techId: 'csv_import', techName: handledBy || 'ייבוא', timestamp: new Date().toISOString() }]
-        : [];
-
     // Parse dates
     const parseDate = (str) => {
         if (!str) return null;
@@ -92,6 +82,20 @@ export function parseCSVRow(row, schoolId, schoolName, schools) {
 
     const createdAt = parseDate(createdAtStr);
     const updatedAt = parseDate(updatedAtStr);
+
+    // Use the parsed date (or createdAt as fallback) for note/equipment timestamps
+    // to avoid overwriting original dates with today's date
+    const importTimestamp = (updatedAt || createdAt || new Date()).toISOString();
+
+    // Build notes array
+    const notes = notesStr
+        ? [{ id: `note_import_${Date.now()}`, techId: 'csv_import', techName: handledBy || 'ייבוא', text: notesStr, timestamp: importTimestamp }]
+        : [];
+
+    // Build supplied equipment array
+    const suppliedEquipment = equipmentStr
+        ? [{ itemId: 'import', itemName: equipmentStr, quantity: 1, techId: 'csv_import', techName: handledBy || 'ייבוא', timestamp: importTimestamp }]
+        : [];
 
     return {
         schoolId: resolvedSchoolId,
@@ -115,7 +119,7 @@ export function parseCSVRow(row, schoolId, schoolName, schools) {
         suppliedEquipment,
         lastHandledByName: handledBy || null,
         createdAt: createdAt || undefined,  // undefined = let serverTimestamp() handle it
-        updatedAt: updatedAt || undefined,
+        updatedAt: updatedAt || createdAt || undefined,  // fallback to createdAt, not today
         source: 'csv_import'
     };
 }

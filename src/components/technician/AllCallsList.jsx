@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Search, Filter, X, Download, Upload, ArrowUpDown, Calendar } from 'lucide-react';
 import { storageService } from '../../services/storage';
 import { ServiceCallCard } from './ServiceCallCard';
-import { STATUS, STATUS_LABELS, PRIORITY, PRIORITY_LABELS, DEFAULT_CATEGORIES } from '../../lib/constants';
+import { STATUS, STATUS_LABELS, PRIORITY, PRIORITY_LABELS, DEFAULT_CATEGORIES, OPEN_STATUSES } from '../../lib/constants';
 import { parseCSVRow } from '../../lib/csvImportHelper';
 import Papa from 'papaparse';
 
@@ -31,6 +31,8 @@ export function AllCallsList({ linkPrefix = '/technician/call' }) {
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
 
+    const [showClosed, setShowClosed] = useState(false);
+
     // Import state
     const [isImporting, setIsImporting] = useState(false);
     const [importResult, setImportResult] = useState(null);
@@ -44,6 +46,8 @@ export function AllCallsList({ linkPrefix = '/technician/call' }) {
 
     // Filter
     const filtered = calls.filter(call => {
+        // ברירת מחדל: הסתר סגורות/הושלמו אלא אם הפעלת showClosed
+        if (!showClosed && !OPEN_STATUSES.includes(call.status)) return false;
         if (statusFilter && call.status !== statusFilter) return false;
         if (priorityFilter && call.priority !== priorityFilter) return false;
         if (categoryFilter && call.category !== categoryFilter) return false;
@@ -84,11 +88,11 @@ export function AllCallsList({ linkPrefix = '/technician/call' }) {
         }
     });
 
-    const hasFilters = statusFilter || priorityFilter || categoryFilter || schoolFilter || dateFrom || dateTo;
+    const hasFilters = statusFilter || priorityFilter || categoryFilter || schoolFilter || dateFrom || dateTo || showClosed;
 
     const clearFilters = () => {
         setStatusFilter(''); setPriorityFilter(''); setCategoryFilter(''); setSchoolFilter('');
-        setDateFrom(''); setDateTo('');
+        setDateFrom(''); setDateTo(''); setShowClosed(false);
     };
 
     // --- Export to CSV ---
@@ -101,7 +105,7 @@ export function AllCallsList({ linkPrefix = '/technician/call' }) {
                 'תאריך פתיחה': d.toLocaleDateString('he-IL'),
                 'תאריך עדכון': upd.toLocaleDateString('he-IL'),
                 'בית ספר': call.schoolName || '',
-                'לקוח': call.clientName || '',
+                'פונה': call.clientName || '',
                 'טלפון': call.clientPhone || '',
                 'מיקום': call.locationDisplay || '',
                 'קטגוריה': call.category || '',
@@ -199,7 +203,7 @@ export function AllCallsList({ linkPrefix = '/technician/call' }) {
                 <input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="חיפוש בפניות... (תיאור, לקוח, מיקום, מספר חדר)"
+                    placeholder="חיפוש בפניות... (תיאור, פונה, מיקום, מספר חדר)"
                     className="w-full pr-10 pl-4 py-2.5 rounded-xl border border-input bg-white text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />
             </div>
@@ -265,6 +269,18 @@ export function AllCallsList({ linkPrefix = '/technician/call' }) {
                                 {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                             </select>
                         </div>
+                    </div>
+
+                    {/* Show closed toggle */}
+                    <div className="flex items-center gap-2 pt-2 border-t">
+                        <input
+                            type="checkbox"
+                            id="showClosed"
+                            checked={showClosed}
+                            onChange={e => setShowClosed(e.target.checked)}
+                            className="rounded"
+                        />
+                        <label htmlFor="showClosed" className="text-xs text-muted-foreground cursor-pointer">הצג גם פניות סגורות/הושלמו</label>
                     </div>
 
                     {/* Date Range */}

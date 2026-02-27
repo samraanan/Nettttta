@@ -10,7 +10,15 @@ export const ROLE_LABELS = {
     [ROLES.TECH_MANAGER]: 'מנהל טכנאים',
     [ROLES.TECHNICIAN]: 'טכנאי',
     [ROLES.SCHOOL_ADMIN]: 'מנהל בית ספר',
-    [ROLES.CLIENT]: 'לקוח'
+    [ROLES.CLIENT]: 'פונה'
+};
+
+// === הרשאות מעבר בין תצוגות ===
+export const CAN_VIEW_AS = {
+    [ROLES.TECH_MANAGER]: [ROLES.TECH_MANAGER, ROLES.TECHNICIAN, ROLES.SCHOOL_ADMIN, ROLES.CLIENT],
+    [ROLES.TECHNICIAN]: [ROLES.TECHNICIAN, ROLES.SCHOOL_ADMIN, ROLES.CLIENT],
+    [ROLES.SCHOOL_ADMIN]: [ROLES.SCHOOL_ADMIN, ROLES.CLIENT],
+    [ROLES.CLIENT]: [ROLES.CLIENT],
 };
 
 // === Route prefix לכל role ===
@@ -68,6 +76,9 @@ export const PRIORITY_COLORS = {
     [PRIORITY.HIGH]: 'bg-orange-100 text-orange-700',
     [PRIORITY.URGENT]: 'bg-red-100 text-red-700'
 };
+
+// === סטטוסים פתוחים (ברירת מחדל לסינון) ===
+export const OPEN_STATUSES = [STATUS.NEW, STATUS.IN_PROGRESS, STATUS.WAITING];
 
 // === קטגוריות ברירת מחדל ===
 export const DEFAULT_CATEGORIES = [

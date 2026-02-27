@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Send, CheckCircle } from 'lucide-react';
 import { storageService } from '../../services/storage';
-import { DEFAULT_CATEGORIES } from '../../lib/constants';
+import { DEFAULT_CATEGORIES, ROLES } from '../../lib/constants';
 import { LocationPicker } from '../shared/LocationPicker';
 import { CategoryIcon } from '../shared/CategoryIcon';
 
@@ -14,12 +14,36 @@ export function NewCallForm({ user }) {
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
 
+    // For non-client users: school selection + caller info
+    const isNonClient = user.role !== ROLES.CLIENT;
+    const [schools, setSchools] = useState([]);
+    const [selectedSchoolId, setSelectedSchoolId] = useState(user.schoolId || '');
+    const [selectedSchoolName, setSelectedSchoolName] = useState(user.schoolName || '');
+    const [callerName, setCallerName] = useState('');
+    const [callerPhone, setCallerPhone] = useState('');
+
+    const activeSchoolId = user.schoolId || selectedSchoolId;
+    const activeSchoolName = user.schoolName || selectedSchoolName;
+
     useEffect(() => {
-        if (!user.schoolId) return;
-        const unsub1 = storageService.subscribeToCategories(user.schoolId, setCategories);
-        const unsub2 = storageService.subscribeToLocations(user.schoolId, setLocations);
+        if (isNonClient && !user.schoolId) {
+            const unsub = storageService.subscribeToAllSchools(setSchools);
+            return () => unsub();
+        }
+    }, [isNonClient, user.schoolId]);
+
+    useEffect(() => {
+        if (!activeSchoolId) return;
+        const unsub1 = storageService.subscribeToCategories(activeSchoolId, setCategories);
+        const unsub2 = storageService.subscribeToLocations(activeSchoolId, setLocations);
         return () => { unsub1(); unsub2(); };
-    }, [user.schoolId]);
+    }, [activeSchoolId]);
+
+    // Reset location when school changes
+    useEffect(() => {
+        setLocation(null);
+        setLocations(null);
+    }, [selectedSchoolId]);
 
     useEffect(() => {
         if (!success) return;
@@ -27,28 +51,38 @@ export function NewCallForm({ user }) {
         return () => clearTimeout(t);
     }, [success]);
 
+    const handleSchoolChange = (e) => {
+        const id = e.target.value;
+        const school = schools.find(s => s.id === id);
+        setSelectedSchoolId(id);
+        setSelectedSchoolName(school?.name || '');
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!category || !description.trim() || !location) return;
+        if (!category || !description.trim() || !location || !activeSchoolId) return;
 
         setLoading(true);
         try {
             await storageService.createServiceCall({
-                schoolId: user.schoolId,
-                schoolName: user.schoolName,
+                schoolId: activeSchoolId,
+                schoolName: activeSchoolName,
                 description: description.trim(),
                 category,
                 clientId: user.uid,
-                clientName: user.displayName,
-                clientPhone: user.phone || null,
+                clientName: isNonClient && callerName.trim() ? callerName.trim() : user.displayName,
+                clientPhone: isNonClient && callerPhone.trim() ? callerPhone.trim() : (user.phone || null),
                 clientEmail: user.email,
                 location,
-                locationDisplay: `${location.floorLabel} > ${location.categoryLabel} > ${location.roomLabel} (חדר ${location.roomNumber})`
+                locationDisplay: location.isMobileDevice
+                    ? `מכשיר נייד: ${location.deviceId || ''}`
+                    : `${location.floorLabel} > ${location.categoryLabel} > ${location.roomLabel} (חדר ${location.roomNumber})`
             });
             setSuccess(true);
             setCategory('');
             setDescription('');
             setLocation(null);
+            if (isNonClient) { setCallerName(''); setCallerPhone(''); }
         } catch (err) {
             console.error('Error creating call:', err);
         } finally {
@@ -74,10 +108,52 @@ export function NewCallForm({ user }) {
         <div className="space-y-6">
             <div>
                 <h1 className="text-2xl font-bold">פנייה חדשה</h1>
-                <p className="text-sm text-muted-foreground mt-1">{user.schoolName}</p>
+                <p className="text-sm text-muted-foreground mt-1">{activeSchoolName}</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
+                {/* בחירת בית ספר — רק למנהל/טכנאי ללא schoolId קבוע */}
+                {isNonClient && !user.schoolId && (
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium">בית ספר</label>
+                        <select
+                            value={selectedSchoolId}
+                            onChange={handleSchoolChange}
+                            required
+                            className="w-full px-4 py-3 rounded-xl border border-input bg-white text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                        >
+                            <option value="">בחר בית ספר...</option>
+                            {schools.map(s => (
+                                <option key={s.id} value={s.id}>{s.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                )}
+
+                {/* פרטי פונה — רק למנהל/טכנאי */}
+                {isNonClient && (
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">שם פונה <span className="text-muted-foreground font-normal">(אופציונלי)</span></label>
+                            <input
+                                value={callerName}
+                                onChange={e => setCallerName(e.target.value)}
+                                placeholder={user.displayName}
+                                className="w-full px-4 py-2.5 rounded-xl border border-input bg-white text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">טלפון <span className="text-muted-foreground font-normal">(אופציונלי)</span></label>
+                            <input
+                                value={callerPhone}
+                                onChange={e => setCallerPhone(e.target.value)}
+                                placeholder={user.phone || ''}
+                                className="w-full px-4 py-2.5 rounded-xl border border-input bg-white text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                            />
+                        </div>
+                    </div>
+                )}
+
                 {/* קטגוריה */}
                 <div className="space-y-2">
                     <label className="text-sm font-medium">סוג הבעיה</label>
@@ -103,7 +179,9 @@ export function NewCallForm({ user }) {
                 {/* מיקום */}
                 <div className="space-y-2">
                     <label className="text-sm font-medium">מיקום</label>
-                    {locations ? (
+                    {!activeSchoolId ? (
+                        <div className="text-sm text-muted-foreground">יש לבחור בית ספר תחילה</div>
+                    ) : locations ? (
                         <LocationPicker
                             locations={locations}
                             value={location}
@@ -130,7 +208,7 @@ export function NewCallForm({ user }) {
                 {/* שלח */}
                 <button
                     type="submit"
-                    disabled={loading || !category || !description.trim() || !location}
+                    disabled={loading || !category || !description.trim() || !location || !activeSchoolId}
                     className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition disabled:opacity-50 shadow-lg shadow-primary/20"
                 >
                     {loading ? (

@@ -1,5 +1,46 @@
 # Changelog
 
+## v2.1.0 — UX & Permissions Improvements (2026-02-26)
+
+### ✨ New Features
+
+#### מעבר בין תצוגות לפי הרשאות
+- מנהל טכנאים: גישה לכל התצוגות (מנהל, טכנאי, מנהל ביה"ס, פונה)
+- טכנאי: גישה לכל התצוגות חוץ ממנהל טכנאים
+- מנהל ביה"ס: גישה לתצוגת מנהל ביה"ס ופונה
+- פונה: תצוגת פונה בלבד
+- כפתורי מעבר תצוגה (switcher) בצידבר
+
+#### פנייה חדשה מכל תצוגה
+- פריט ניווט "פנייה חדשה" זמין בכל הסרגלים (מנהל, טכנאי, מנהל ביה"ס)
+- טופס פנייה חדשה תומך כעת במנהל/טכנאי: בחירת בית ספר מרשימה + שם/טלפון פונה אופציונלי
+
+#### ברירת מחדל — פניות פתוחות בלבד
+- רשימת הפניות מציגה ברירת מחדל רק פניות פתוחות (התקבל, בטיפול, ממתין)
+- checkbox "הצג גם פניות סגורות/הושלמו" בפאנל הסינון
+
+### 🔧 Fixes
+
+#### תאריך עדכון בייבוא
+- ייבוא CSV: אם אין `updatedAt` בשורה — משתמש ב-`createdAt` ולא בתאריך היום
+- timestamps של הערות וציוד בייבוא: משתמשים בתאריך המקורי מה-CSV
+
+#### שם הרשאה "פונה" במקום "לקוח"
+- `ROLE_LABELS[CLIENT]` שונה ל-"פונה"
+- עמודת CSV: `'פונה'` בייצוא; ייבוא מקבל גם `'פונה'` וגם `'לקוח'` (תאימות לאחור)
+- placeholder חיפוש עודכן
+
+### 📁 Files Modified
+- `src/lib/constants.js` — CAN_VIEW_AS, OPEN_STATUSES, label פונה
+- `src/App.jsx` — viewRole state, protect מבוסס routeOwnerRole
+- `src/components/layout/ProtectedRoute.jsx` — CAN_VIEW_AS-based access
+- `src/components/layout/AppLayout.jsx` — view switcher, "פנייה חדשה" בכל nav
+- `src/components/client/NewCallForm.jsx` — תמיכה במנהל/טכנאי (school selection)
+- `src/components/technician/AllCallsList.jsx` — default filter, עמודת פונה
+- `src/lib/csvImportHelper.js` — תיקון תאריכים, עמודת פונה
+
+---
+
 ## v2.0.0 — School Management & Integrations (2026-02-27)
 
 ### ✨ New Features

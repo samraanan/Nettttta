@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
     Menu, X, LogOut, Home, List, BarChart3,
-    Package, Settings, Clock, Building2, Wrench, MapPin, Users
+    Package, Settings, Clock, Building2, Wrench, MapPin, Users, PlusCircle
 } from 'lucide-react';
-import { ROLES, ROLE_LABELS } from '../../lib/constants';
+import { ROLES, ROLE_LABELS, ROLE_HOME, CAN_VIEW_AS } from '../../lib/constants';
 import { authService } from '../../services/authService';
 import { cn } from '../../lib/utils';
 
@@ -17,33 +17,52 @@ const NAV_ITEMS = {
         { to: '/manager/inventory', icon: Package, label: 'מלאי ציוד' },
         { to: '/manager/schools', icon: Settings, label: 'בתי ספר' },
         { to: '/manager/users', icon: Users, label: 'משתמשים' },
+        { to: '/client', icon: PlusCircle, label: 'פנייה חדשה' },
     ],
     [ROLES.TECHNICIAN]: [
         { to: '/technician', icon: Home, label: 'ראשי', end: true },
         { to: '/technician/calls', icon: List, label: 'פניות' },
         { to: '/technician/room-history', icon: MapPin, label: 'היסטוריית חדר' },
         { to: '/technician/clock', icon: Clock, label: 'כניסה/יציאה' },
+        { to: '/client', icon: PlusCircle, label: 'פנייה חדשה' },
     ],
     [ROLES.SCHOOL_ADMIN]: [
         { to: '/school', icon: Home, label: 'ראשי', end: true },
         { to: '/school/calls', icon: List, label: 'פניות' },
         { to: '/school/reports', icon: BarChart3, label: 'דוחות' },
+        { to: '/client', icon: PlusCircle, label: 'פנייה חדשה' },
     ],
     [ROLES.CLIENT]: [
-        { to: '/client', icon: Home, label: 'פנייה חדשה', end: true },
+        { to: '/client', icon: PlusCircle, label: 'פנייה חדשה', end: true },
         { to: '/client/my-calls', icon: List, label: 'הפניות שלי' },
     ],
 };
 
-export function AppLayout({ user, children }) {
+const VIEW_LABELS = {
+    [ROLES.TECH_MANAGER]: 'מנהל טכנאים',
+    [ROLES.TECHNICIAN]: 'טכנאי',
+    [ROLES.SCHOOL_ADMIN]: 'מנהל ביה"ס',
+    [ROLES.CLIENT]: 'פונה',
+};
+
+export function AppLayout({ user, viewRole, setViewRole, children }) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const navigate = useNavigate();
 
-    const navItems = NAV_ITEMS[user.role] || [];
+    const effectiveViewRole = viewRole || user.role;
+    const navItems = NAV_ITEMS[effectiveViewRole] || [];
+    const viewableRoles = CAN_VIEW_AS[user.role] || [user.role];
+    const canSwitch = viewableRoles.length > 1;
 
     const handleLogout = async () => {
         await authService.logout();
         navigate('/login');
+    };
+
+    const handleViewSwitch = (newRole) => {
+        setViewRole(newRole === user.role ? null : newRole);
+        navigate(ROLE_HOME[newRole]);
+        setSidebarOpen(false);
     };
 
     return (
@@ -97,6 +116,29 @@ export function AppLayout({ user, children }) {
                             </button>
                         </div>
                     </div>
+
+                    {/* View Switcher */}
+                    {canSwitch && (
+                        <div className="px-3 pt-3 pb-1 border-b border-border">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1.5 px-1">תצוגה</p>
+                            <div className="flex flex-wrap gap-1">
+                                {viewableRoles.map(role => (
+                                    <button
+                                        key={role}
+                                        onClick={() => handleViewSwitch(role)}
+                                        className={cn(
+                                            "px-2.5 py-1 rounded-lg text-xs font-medium transition",
+                                            effectiveViewRole === role
+                                                ? "bg-primary text-primary-foreground"
+                                                : "bg-muted text-muted-foreground hover:bg-muted/80"
+                                        )}
+                                    >
+                                        {VIEW_LABELS[role]}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Nav Links */}
                     <nav className="flex-1 p-3 space-y-1 overflow-y-auto">

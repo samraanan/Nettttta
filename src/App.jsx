@@ -36,18 +36,24 @@ import { RoomHistoryView } from './components/shared/RoomHistoryView';
 export default function App() {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [viewRole, setViewRole] = useState(null); // null = use user.role
 
     useEffect(() => {
         const unsubscribe = authService.onAuthChange((userData) => {
             setUser(userData);
+            setViewRole(null); // reset view when user changes
             setLoading(false);
         });
         return () => unsubscribe();
     }, []);
 
-    const protect = (component, allowedRoles) => (
-        <ProtectedRoute user={user} loading={loading} allowedRoles={allowedRoles}>
-            <AppLayout user={user}>{component}</AppLayout>
+    const effectiveViewRole = viewRole || user?.role;
+
+    const protect = (component, routeOwnerRole) => (
+        <ProtectedRoute user={user} loading={loading} routeOwnerRole={routeOwnerRole}>
+            <AppLayout user={user} viewRole={effectiveViewRole} setViewRole={setViewRole}>
+                {component}
+            </AppLayout>
         </ProtectedRoute>
     );
 
@@ -62,33 +68,33 @@ export default function App() {
                 } />
 
                 {/* מנהל טכנאים */}
-                <Route path="/manager" element={protect(<ManagerDashboard user={user} />, [ROLES.TECH_MANAGER])} />
-                <Route path="/manager/calls" element={protect(<AllCallsList user={user} linkPrefix="/manager/calls" />, [ROLES.TECH_MANAGER])} />
-                <Route path="/manager/calls/:callId" element={protect(<CallDetailView user={user} canEditStatus canEditPriority canAddNotes />, [ROLES.TECH_MANAGER])} />
-                <Route path="/manager/reports" element={protect(<ReportsView user={user} />, [ROLES.TECH_MANAGER])} />
-                <Route path="/manager/inventory" element={protect(<InventoryManager user={user} />, [ROLES.TECH_MANAGER])} />
-                <Route path="/manager/schools" element={protect(<SchoolSettings user={user} />, [ROLES.TECH_MANAGER])} />
-                <Route path="/manager/schools/new" element={protect(<NewSchoolWizard user={user} />, [ROLES.TECH_MANAGER])} />
-                <Route path="/manager/schools/:schoolId" element={protect(<SchoolSetup user={user} />, [ROLES.TECH_MANAGER])} />
-                <Route path="/manager/room-history" element={protect(<RoomHistoryView user={user} linkPrefix="/manager/calls" />, [ROLES.TECH_MANAGER])} />
-                <Route path="/manager/users" element={protect(<UserManager user={user} />, [ROLES.TECH_MANAGER])} />
+                <Route path="/manager" element={protect(<ManagerDashboard user={user} />, ROLES.TECH_MANAGER)} />
+                <Route path="/manager/calls" element={protect(<AllCallsList user={user} linkPrefix="/manager/calls" />, ROLES.TECH_MANAGER)} />
+                <Route path="/manager/calls/:callId" element={protect(<CallDetailView user={user} canEditStatus canEditPriority canAddNotes />, ROLES.TECH_MANAGER)} />
+                <Route path="/manager/reports" element={protect(<ReportsView user={user} />, ROLES.TECH_MANAGER)} />
+                <Route path="/manager/inventory" element={protect(<InventoryManager user={user} />, ROLES.TECH_MANAGER)} />
+                <Route path="/manager/schools" element={protect(<SchoolSettings user={user} />, ROLES.TECH_MANAGER)} />
+                <Route path="/manager/schools/new" element={protect(<NewSchoolWizard user={user} />, ROLES.TECH_MANAGER)} />
+                <Route path="/manager/schools/:schoolId" element={protect(<SchoolSetup user={user} />, ROLES.TECH_MANAGER)} />
+                <Route path="/manager/room-history" element={protect(<RoomHistoryView user={user} linkPrefix="/manager/calls" />, ROLES.TECH_MANAGER)} />
+                <Route path="/manager/users" element={protect(<UserManager user={user} />, ROLES.TECH_MANAGER)} />
 
                 {/* טכנאי */}
-                <Route path="/technician" element={protect(<TechDashboard user={user} />, [ROLES.TECHNICIAN])} />
-                <Route path="/technician/calls" element={protect(<AllCallsList user={user} linkPrefix="/technician/call" />, [ROLES.TECHNICIAN])} />
-                <Route path="/technician/call/:callId" element={protect(<CallDetailView user={user} canEditStatus canEditPriority canAddNotes />, [ROLES.TECHNICIAN])} />
-                <Route path="/technician/clock" element={protect(<ClockInOut user={user} />, [ROLES.TECHNICIAN])} />
-                <Route path="/technician/room-history" element={protect(<RoomHistoryView user={user} linkPrefix="/technician/call" />, [ROLES.TECHNICIAN])} />
+                <Route path="/technician" element={protect(<TechDashboard user={user} />, ROLES.TECHNICIAN)} />
+                <Route path="/technician/calls" element={protect(<AllCallsList user={user} linkPrefix="/technician/call" />, ROLES.TECHNICIAN)} />
+                <Route path="/technician/call/:callId" element={protect(<CallDetailView user={user} canEditStatus canEditPriority canAddNotes />, ROLES.TECHNICIAN)} />
+                <Route path="/technician/clock" element={protect(<ClockInOut user={user} />, ROLES.TECHNICIAN)} />
+                <Route path="/technician/room-history" element={protect(<RoomHistoryView user={user} linkPrefix="/technician/call" />, ROLES.TECHNICIAN)} />
 
                 {/* מנהל בית ספר */}
-                <Route path="/school" element={protect(<SchoolDashboard user={user} />, [ROLES.SCHOOL_ADMIN])} />
-                <Route path="/school/calls" element={protect(<SchoolCallsView user={user} />, [ROLES.SCHOOL_ADMIN])} />
-                <Route path="/school/call/:callId" element={protect(<CallDetailView user={user} canEditStatus={false} canEditPriority canAddNotes={false} />, [ROLES.SCHOOL_ADMIN])} />
-                <Route path="/school/reports" element={protect(<SchoolReports user={user} />, [ROLES.SCHOOL_ADMIN])} />
+                <Route path="/school" element={protect(<SchoolDashboard user={user} />, ROLES.SCHOOL_ADMIN)} />
+                <Route path="/school/calls" element={protect(<SchoolCallsView user={user} />, ROLES.SCHOOL_ADMIN)} />
+                <Route path="/school/call/:callId" element={protect(<CallDetailView user={user} canEditStatus={false} canEditPriority canAddNotes={false} />, ROLES.SCHOOL_ADMIN)} />
+                <Route path="/school/reports" element={protect(<SchoolReports user={user} />, ROLES.SCHOOL_ADMIN)} />
 
-                {/* לקוח */}
-                <Route path="/client" element={protect(<NewCallForm user={user} />, [ROLES.CLIENT])} />
-                <Route path="/client/my-calls" element={protect(<MyCallsView user={user} />, [ROLES.CLIENT])} />
+                {/* פונה — נגיש לכל מי שמורשה (לפי CAN_VIEW_AS) */}
+                <Route path="/client" element={protect(<NewCallForm user={user} />, ROLES.CLIENT)} />
+                <Route path="/client/my-calls" element={protect(<MyCallsView user={user} />, ROLES.CLIENT)} />
 
                 {/* Default */}
                 <Route path="*" element={<Navigate to="/login" replace />} />
