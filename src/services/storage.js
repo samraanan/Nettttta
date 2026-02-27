@@ -438,28 +438,30 @@ export const storageService = {
     // ========== מחיקת מוסד (Hard Delete) ==========
 
     async deleteSchool(schoolId) {
-        const batch = writeBatch(db);
+        const CHUNK = 400; // Firestore batch limit is 500; keep margin
+
+        // Helper: delete an array of doc refs in chunked batches
+        const deleteInChunks = async (docRefs) => {
+            for (let i = 0; i < docRefs.length; i += CHUNK) {
+                const b = writeBatch(db);
+                docRefs.slice(i, i + CHUNK).forEach(ref => b.delete(ref));
+                await b.commit();
+            }
+        };
 
         // 1. Delete all service calls associated with this school
         const callsSnap = await getDocs(query(collection(db, 'service_calls'), where('schoolId', '==', schoolId)));
-        callsSnap.docs.forEach(d => {
-            batch.delete(doc(db, 'service_calls', d.id));
-        });
+        await deleteInChunks(callsSnap.docs.map(d => doc(db, 'service_calls', d.id)));
 
-        // 2. Delete all users associated with this school 
-        // Note: This disables their app access. We can't delete from Auth directly without Admin SDK.
+        // 2. Delete all users associated with this school
         const usersSnap = await getDocs(query(collection(db, 'users'), where('schoolId', '==', schoolId)));
-        usersSnap.docs.forEach(d => {
-            batch.delete(doc(db, 'users', d.id));
-        });
+        await deleteInChunks(usersSnap.docs.map(d => doc(db, 'users', d.id)));
 
-        // 3. Delete school meta subcollections
-        batch.delete(doc(db, 'schools', schoolId, 'meta', 'categories'));
-        batch.delete(doc(db, 'schools', schoolId, 'meta', 'locations'));
-
-        // 4. Delete the school document itself
-        batch.delete(doc(db, 'schools', schoolId));
-
-        await batch.commit();
+        // 3. Delete school meta subcollections + school doc in one final batch
+        const finalBatch = writeBatch(db);
+        finalBatch.delete(doc(db, 'schools', schoolId, 'meta', 'categories'));
+        finalBatch.delete(doc(db, 'schools', schoolId, 'meta', 'locations'));
+        finalBatch.delete(doc(db, 'schools', schoolId));
+        await finalBatch.commit();
     }
 };
