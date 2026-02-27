@@ -2,12 +2,33 @@ import { db } from './firebase';
 import {
     collection, doc, onSnapshot, setDoc, updateDoc,
     addDoc, query, where, orderBy, runTransaction,
-    serverTimestamp
+    serverTimestamp, deleteDoc, getDocs, writeBatch
 } from 'firebase/firestore';
 import { DEFAULT_CATEGORIES } from '../lib/constants';
 import { DEMO_LOCATIONS } from '../lib/demoData';
 
 const uid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+
+// --- Webhook Helper (Google Sheets sync) ---
+async function _sendWebhook(schoolId, callId, payload, action) {
+    try {
+        const schoolSnap = await getDocs(query(collection(db, 'schools'), where('__name__', '==', schoolId)));
+        if (schoolSnap.empty) return;
+        const schoolData = schoolSnap.docs[0].data();
+        const webhookUrl = schoolData.webhookUrl;
+        if (!webhookUrl) return;
+
+        // Fire-and-forget: don't block the UI
+        fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: callId, action, payload }),
+            mode: 'no-cors'
+        }).catch(err => console.warn('Webhook delivery failed (non-blocking):', err));
+    } catch (err) {
+        console.warn('Webhook lookup failed (non-blocking):', err);
+    }
+}
 
 export const storageService = {
 
@@ -91,22 +112,28 @@ export const storageService = {
             performedByName: callData.clientName,
             timestamp: new Date().toISOString()
         };
-        return await addDoc(collection(db, 'service_calls'), {
+        const fullPayload = {
             ...callData,
-            priority: null,
-            status: 'new',
-            lastHandledBy: null,
-            lastHandledByName: null,
-            lastHandledAt: null,
-            notes: [],
-            suppliedEquipment: [],
-            history: [historyEntry],
+            priority: callData.priority || null,
+            status: callData.status || 'new',
+            lastHandledBy: callData.lastHandledBy || null,
+            lastHandledByName: callData.lastHandledByName || null,
+            lastHandledAt: callData.lastHandledAt || null,
+            notes: callData.notes || [],
+            suppliedEquipment: callData.suppliedEquipment || [],
+            history: callData.history || [historyEntry],
             source: callData.source || 'app',
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-            resolvedAt: null,
-            closedAt: null
-        });
+            createdAt: callData.createdAt || serverTimestamp(),
+            updatedAt: callData.updatedAt || serverTimestamp(),
+            resolvedAt: callData.resolvedAt || null,
+            closedAt: callData.closedAt || null
+        };
+        const docRef = await addDoc(collection(db, 'service_calls'), fullPayload);
+
+        // Send to Google Sheets (non-blocking)
+        _sendWebhook(callData.schoolId, docRef.id, { ...callData, status: 'new' }, 'create');
+
+        return docRef;
     },
 
     async updateCallStatus(callId, newStatus, techId, techName) {
@@ -143,6 +170,13 @@ export const storageService = {
 
             transaction.update(callRef, updates);
         });
+
+        // Send status update to Google Sheets (non-blocking)
+        const updatedSnap = await getDocs(query(collection(db, 'service_calls'), where('__name__', '==', callId)));
+        if (!updatedSnap.empty) {
+            const updatedData = updatedSnap.docs[0].data();
+            _sendWebhook(updatedData.schoolId, callId, updatedData, 'update');
+        }
     },
 
     async updateCallPriority(callId, priority, performerId, performerName) {
@@ -369,6 +403,14 @@ export const storageService = {
         });
     },
 
+    async updateSchoolInfo(schoolId, data) {
+        await updateDoc(doc(db, 'schools', schoolId), data);
+    },
+
+    async addSchool(schoolData) {
+        return await addDoc(collection(db, 'schools'), schoolData);
+    },
+
     // ========== קטגוריות + מיקומים ==========
 
     subscribeToCategories(schoolId, callback) {
@@ -391,5 +433,33 @@ export const storageService = {
 
     async updateLocations(schoolId, locationsData) {
         await setDoc(doc(db, 'schools', schoolId, 'meta', 'locations'), locationsData, { merge: true });
+    },
+
+    // ========== מחיקת מוסד (Hard Delete) ==========
+
+    async deleteSchool(schoolId) {
+        const batch = writeBatch(db);
+
+        // 1. Delete all service calls associated with this school
+        const callsSnap = await getDocs(query(collection(db, 'service_calls'), where('schoolId', '==', schoolId)));
+        callsSnap.docs.forEach(d => {
+            batch.delete(doc(db, 'service_calls', d.id));
+        });
+
+        // 2. Delete all users associated with this school 
+        // Note: This disables their app access. We can't delete from Auth directly without Admin SDK.
+        const usersSnap = await getDocs(query(collection(db, 'users'), where('schoolId', '==', schoolId)));
+        usersSnap.docs.forEach(d => {
+            batch.delete(doc(db, 'users', d.id));
+        });
+
+        // 3. Delete school meta subcollections
+        batch.delete(doc(db, 'schools', schoolId, 'meta', 'categories'));
+        batch.delete(doc(db, 'schools', schoolId, 'meta', 'locations'));
+
+        // 4. Delete the school document itself
+        batch.delete(doc(db, 'schools', schoolId));
+
+        await batch.commit();
     }
 };

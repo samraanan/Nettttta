@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowRight, Building2, MapPin, Save, Plus, Trash2, Tag } from 'lucide-react';
+import { ArrowRight, Building2, MapPin, Save, Plus, Trash2, Tag, AlertOctagon, X, Upload } from 'lucide-react';
 import { storageService } from '../../services/storage';
 import { DEFAULT_CATEGORIES } from '../../lib/constants';
+import { parseCSVRow } from '../../lib/csvImportHelper';
+import Papa from 'papaparse';
 
 export function SchoolSetup() {
     const { schoolId } = useParams();
@@ -13,6 +15,15 @@ export function SchoolSetup() {
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [activeSection, setActiveSection] = useState('locations');
+
+    // Delete Modal State
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deleteInput, setDeleteInput] = useState('');
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    // Sheet Import State
+    const [isImportingSheet, setIsImportingSheet] = useState(false);
+    const [importResult, setImportResult] = useState(null);
 
     useEffect(() => {
         if (!saved) return;
@@ -146,13 +157,33 @@ export function SchoolSetup() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            await storageService.updateLocations(schoolId, locations);
-            await storageService.updateCategories(schoolId, categories);
+            if (activeSection === 'info') {
+                await storageService.updateSchoolInfo(schoolId, {
+                    name: school.name,
+                    webhookUrl: school.webhookUrl || ''
+                });
+            } else {
+                await storageService.updateLocations(schoolId, locations);
+                await storageService.updateCategories(schoolId, categories);
+            }
             setSaved(true);
         } catch (err) {
             console.error('Error saving:', err);
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (deleteInput !== school.name) return;
+        setIsDeleting(true);
+        try {
+            await storageService.deleteSchool(schoolId);
+            navigate('/manager/schools'); // redirect to list
+        } catch (err) {
+            console.error('Error deleting school:', err);
+            alert("שגיאה במחיקת מוסד: " + err.message);
+            setIsDeleting(false);
         }
     };
 
@@ -182,24 +213,116 @@ export function SchoolSetup() {
             {/* Section tabs */}
             <div className="flex gap-2">
                 <button
+                    onClick={() => setActiveSection('info')}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition ${activeSection === 'info' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
+                >
+                    <Building2 className="w-4 h-4" />
+                    פרטים כלליים
+                </button>
+                <button
                     onClick={() => setActiveSection('locations')}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition ${
-                        activeSection === 'locations' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-                    }`}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition ${activeSection === 'locations' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                        }`}
                 >
                     <MapPin className="w-4 h-4" />
                     מיקומים
                 </button>
                 <button
                     onClick={() => setActiveSection('categories')}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition ${
-                        activeSection === 'categories' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-                    }`}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition ${activeSection === 'categories' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                        }`}
                 >
                     <Tag className="w-4 h-4" />
                     קטגוריות שירות
                 </button>
             </div>
+
+            {/* Info Editor */}
+            {activeSection === 'info' && (
+                <div className="space-y-4 bg-card rounded-2xl border p-6">
+                    <div className="space-y-4 max-w-lg">
+                        <div>
+                            <label className="block text-sm font-medium mb-1">שם המוסד</label>
+                            <input
+                                value={school?.name || ''}
+                                onChange={(e) => setSchool({ ...school, name: e.target.value })}
+                                className="w-full px-3 py-2 rounded-xl border focus:outline-none focus:ring-2 focus:ring-primary"
+                            />
+                        </div>
+                        <div className="pt-4 border-t">
+                            <label className="block text-sm font-bold text-primary mb-1">קישור Webhook (Google Sheets)</label>
+                            <input
+                                value={school?.webhookUrl || ''}
+                                onChange={(e) => setSchool({ ...school, webhookUrl: e.target.value })}
+                                placeholder="https://script.google.com/macros/s/..."
+                                className="w-full px-3 py-2 rounded-xl border focus:outline-none focus:ring-2 focus:ring-primary text-left"
+                                dir="ltr"
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">אופציונלי. הדבק כאן את כתובת ה-Web App של גוגל כדי להסתנכרן אוטומטית.</p>
+                        </div>
+
+                        {/* Import from CSV */}
+                        <div className="pt-4 border-t">
+                            <label className="block text-sm font-bold text-primary mb-2">ייבוא פניות מ-CSV</label>
+                            <p className="text-xs text-muted-foreground mb-3">ייבא פניות היסטוריות מקובץ CSV. עמודות נתמכות: תיאור, קטגוריה, לקוח, מיקום, סטטוס, דחיפות, טלפון, תאריך פתיחה, תאריך עדכון, מה בוצע, ציוד שסופק, טופל ע"י.</p>
+                            <input
+                                type="file"
+                                accept=".csv"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+                                    setIsImportingSheet(true);
+                                    setImportResult(null);
+                                    Papa.parse(file, {
+                                        header: true,
+                                        skipEmptyLines: true,
+                                        complete: async (results) => {
+                                            try {
+                                                let imported = 0;
+                                                for (const row of results.data) {
+                                                    const callData = parseCSVRow(row, schoolId, school.name, null);
+                                                    if (!callData) continue;
+                                                    await storageService.createServiceCall(callData);
+                                                    imported++;
+                                                }
+                                                setImportResult({ ok: true, msg: `יובאו ${imported} פניות בהצלחה!` });
+                                            } catch (err) {
+                                                setImportResult({ ok: false, msg: 'שגיאה: ' + err.message });
+                                            } finally {
+                                                setIsImportingSheet(false);
+                                            }
+                                        },
+                                        error: (err) => {
+                                            setImportResult({ ok: false, msg: 'שגיאה בקריאת הקובץ: ' + err.message });
+                                            setIsImportingSheet(false);
+                                        }
+                                    });
+                                    e.target.value = '';
+                                }}
+                                disabled={isImportingSheet}
+                                className="hidden"
+                                id="csv-import-input"
+                            />
+                            <label
+                                htmlFor="csv-import-input"
+                                className={`inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-blue-700 transition cursor-pointer ${isImportingSheet ? 'opacity-50 pointer-events-none' : ''}`}
+                            >
+                                {isImportingSheet ? (
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                    <Upload className="w-4 h-4" />
+                                )}
+                                {isImportingSheet ? 'מייבא...' : 'העלה קובץ CSV'}
+                            </label>
+                            {importResult && (
+                                <div className={`mt-3 text-sm px-3 py-2 rounded-lg ${importResult.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+                                    {importResult.msg}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Locations Editor */}
             {activeSection === 'locations' && (
@@ -322,11 +445,10 @@ export function SchoolSetup() {
             <button
                 onClick={handleSave}
                 disabled={saving}
-                className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition shadow-lg ${
-                    saved
-                        ? 'bg-emerald-500 text-white shadow-emerald-500/20'
-                        : 'bg-primary text-primary-foreground shadow-primary/20 hover:bg-primary/90'
-                } disabled:opacity-50`}
+                className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition shadow-lg ${saved
+                    ? 'bg-emerald-500 text-white shadow-emerald-500/20'
+                    : 'bg-primary text-primary-foreground shadow-primary/20 hover:bg-primary/90'
+                    } disabled:opacity-50`}
             >
                 {saving ? (
                     <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
@@ -335,6 +457,78 @@ export function SchoolSetup() {
                 )}
                 {saved ? 'נשמר!' : saving ? 'שומר...' : 'שמור שינויים'}
             </button>
+
+            {/* Danger Zone */}
+            <div className="mt-12 pt-8 border-t border-destructive/20">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-destructive/5 rounded-2xl p-6 border border-destructive/10">
+                    <div>
+                        <h3 className="text-lg font-bold text-destructive flex items-center gap-2">
+                            <AlertOctagon className="w-5 h-5" />
+                            אזור מסוכן (שחיקת נתונים)
+                        </h3>
+                        <p className="text-sm text-muted-foreground mt-1 max-w-lg">
+                            מחיקת בית הספר תסיר לחלוטין את כל הגדרות המוסד, פניות השירות הקשורות אליו, ופריטי המלאי. גישת משתמשים/מורים למוסד זה תיחסם.
+                        </p>
+                    </div>
+                    <button
+                        onClick={() => setShowDeleteModal(true)}
+                        className="bg-destructive/10 text-destructive hover:bg-destructive hover:text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap"
+                    >
+                        מחק מוסד לחלוטין
+                    </button>
+                </div>
+            </div>
+
+            {/* Delete Confirmation Modal */}
+            {showDeleteModal && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-background rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
+                        <div className="flex justify-between items-start">
+                            <div className="flex items-center gap-3 text-destructive">
+                                <AlertOctagon className="w-6 h-6" />
+                                <h2 className="text-xl font-bold">מחיקת מוסד לצמיתות</h2>
+                            </div>
+                            <button onClick={() => { setShowDeleteModal(false); setDeleteInput(''); }} className="text-muted-foreground hover:bg-muted p-2 rounded-full transition">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <p className="text-sm text-foreground">
+                            פעולה זו היא סופית ולא ניתנת לביטול.
+                            היא תמחק את כל היסטוריית הפניות, הציוד, שיוכי המשתמשים ומבנה בית הספר.
+                        </p>
+
+                        <div className="space-y-2 bg-muted/50 p-4 rounded-xl border">
+                            <p className="text-sm font-medium">כדי לאשר, אנא הקלד את שם בית הספר המדויק:</p>
+                            <p className="text-sm font-bold select-none bg-white px-2 py-1 rounded inline-block border">{school.name}</p>
+                            <input
+                                autoFocus
+                                value={deleteInput}
+                                onChange={(e) => setDeleteInput(e.target.value)}
+                                placeholder="שם המוסד..."
+                                className="w-full mt-2 px-3 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-destructive/50"
+                            />
+                        </div>
+
+                        <div className="flex gap-3 pt-2">
+                            <button
+                                onClick={handleDelete}
+                                disabled={isDeleting || deleteInput !== school.name}
+                                className="flex-1 bg-destructive text-white py-2.5 rounded-xl font-medium hover:bg-destructive/90 transition disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center h-[44px]"
+                            >
+                                {isDeleting ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : "אני מבין, מחק עכשיו"}
+                            </button>
+                            <button
+                                onClick={() => { setShowDeleteModal(false); setDeleteInput(''); }}
+                                disabled={isDeleting}
+                                className="flex-1 bg-muted hover:bg-muted/80 text-foreground py-2.5 rounded-xl font-medium transition"
+                            >
+                                ביטול
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

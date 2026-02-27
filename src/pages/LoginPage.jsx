@@ -24,8 +24,8 @@ export function LoginPage() {
         } catch (err) {
             if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
                 setError('אימייל או סיסמה שגויים');
-            } else if (err.message === 'משתמש לא נמצא במערכת') {
-                setError('משתמש לא נמצא במערכת');
+            } else if (err.message && err.message.includes('משתמש לא נמצא במערכת')) {
+                setError(err.message);
             } else {
                 setError('שגיאה בהתחברות. נסה שוב.');
             }

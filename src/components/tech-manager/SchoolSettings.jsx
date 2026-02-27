@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Building2, Settings } from 'lucide-react';
+import { Building2, Settings, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { storageService } from '../../services/storage';
 
@@ -13,16 +13,24 @@ export function SchoolSettings() {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold">בתי ספר</h1>
-                <p className="text-sm text-muted-foreground mt-1">{schools.length} בתי ספר במערכת</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold">מערך בתי הספר</h1>
+                    <p className="text-sm text-muted-foreground mt-1">{schools.length} בתי ספר מחוברים למערכת</p>
+                </div>
+                <Link to="/manager/schools/new" className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl text-sm font-medium hover:bg-primary/90 transition shadow-sm w-fit">
+                    <Plus className="w-4 h-4" />
+                    צור מוסד חדש
+                </Link>
             </div>
 
             {schools.length === 0 ? (
-                <div className="text-center py-12">
-                    <Building2 className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
-                    <p className="text-muted-foreground">אין בתי ספר עדיין</p>
-                    <p className="text-xs text-muted-foreground mt-1">הוסף בית ספר ראשון דרך Firebase Console</p>
+                <div className="text-center py-16 bg-card border border-dashed rounded-3xl">
+                    <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <Building2 className="w-8 h-8 text-primary" />
+                    </div>
+                    <h3 className="text-lg font-bold">עדיין אין מוסדות</h3>
+                    <p className="text-muted-foreground mt-1 text-sm max-w-sm mx-auto">כדי להתחיל לקלוט פניות יש להקים לפחות בית ספר אחד דרך אשף ההקמה המהיר שלנו.</p>
                 </div>
             ) : (
                 <div className="space-y-3">

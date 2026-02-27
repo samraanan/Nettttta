@@ -1,18 +1,34 @@
 import { useState, useEffect } from 'react';
-import { BarChart3, List, Package, Settings, AlertCircle, Loader2, CheckCircle, Clock, Building2 } from 'lucide-react';
+import { BarChart3, List, Package, Settings, AlertCircle, Clock, Building2, CheckCircle2, Wrench, AlertTriangle, TrendingUp, DollarSign, Database } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { storageService } from '../../services/storage';
+import { migrationService } from '../../services/migrationService';
 import { ServiceCallCard } from '../technician/ServiceCallCard';
 
 export function ManagerDashboard({ user }) {
     const [calls, setCalls] = useState([]);
     const [schools, setSchools] = useState([]);
+    const [isMigrating, setIsMigrating] = useState(false);
 
     useEffect(() => {
         const unsub1 = storageService.subscribeToAllCalls(setCalls);
         const unsub2 = storageService.subscribeToAllSchools(setSchools);
         return () => { unsub1(); unsub2(); };
     }, []);
+
+    const handleMigration = async () => {
+        if (window.confirm("האם להריץ ייבוא נתונים ראשוני למערכת? פעולה זו תיצור את בית הספר הדמו ופריטי מלאי התחלתיים.")) {
+            setIsMigrating(true);
+            try {
+                await migrationService.runMigration();
+                alert("הייבוא עבר בהצלחה! רענן את העמוד כדי לראות את הנתונים החדשים.");
+            } catch (err) {
+                alert("שגיאה בייבוא הנתונים: " + err.message);
+            } finally {
+                setIsMigrating(false);
+            }
+        }
+    };
 
     const openCalls = calls.filter(c => c.status !== 'closed');
     const newCalls = calls.filter(c => c.status === 'new');
@@ -21,8 +37,8 @@ export function ManagerDashboard({ user }) {
 
     const stats = [
         { label: 'חדשות', value: newCalls.length, icon: AlertCircle, color: 'bg-slate-100 text-slate-700' },
-        { label: 'בטיפול', value: inProgressCalls.length, icon: Loader2, color: 'bg-blue-100 text-blue-700' },
-        { label: 'קריטיות', value: urgentCalls.length, icon: AlertCircle, color: 'bg-red-100 text-red-700' },
+        { label: 'בטיפול', value: inProgressCalls.length, icon: Wrench, color: 'bg-blue-100 text-blue-700' },
+        { label: 'קריטיות', value: urgentCalls.length, icon: AlertTriangle, color: 'bg-red-100 text-red-700' },
         { label: 'פתוחות', value: openCalls.length, icon: Clock, color: 'bg-amber-100 text-amber-700' },
     ];
 
@@ -37,8 +53,23 @@ export function ManagerDashboard({ user }) {
         <div className="space-y-6">
             <div>
                 <h1 className="text-2xl font-bold">שלום, {user.displayName}</h1>
-                <p className="text-muted-foreground text-sm mt-1">מנהל טכנאים - לוח בקרה</p>
+                <p className="text-muted-foreground text-sm">סקירה כללית של מערכת הפניות והמלאי</p>
             </div>
+
+            {schools.length === 0 && (
+                <button
+                    onClick={handleMigration}
+                    disabled={isMigrating}
+                    className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-800 transition-colors shadow-sm disabled:opacity-50"
+                >
+                    {isMigrating ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                        <Database className="w-4 h-4" />
+                    )}
+                    {isMigrating ? 'מייבא נתונים...' : 'הפעלת ייבוא נתונים (פעם אחת)'}
+                </button>
+            )}
 
             {/* Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

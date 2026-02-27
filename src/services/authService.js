@@ -14,7 +14,7 @@ export const authService = {
         const result = await signInWithEmailAndPassword(auth, email, password);
         const userDoc = await getDoc(doc(db, 'users', result.user.uid));
         if (!userDoc.exists()) {
-            throw new Error('משתמש לא נמצא במערכת');
+            throw new Error('משתמש לא נמצא במערכת (נא לפנות למנהל המערכת הראשי)');
         }
         return { uid: result.user.uid, ...userDoc.data() };
     },
